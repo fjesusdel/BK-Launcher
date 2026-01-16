@@ -9,7 +9,7 @@
 # ==================================================
 
 # -------------------------------
-# COMPROBAR PERMISOS DE ADMINISTRADOR (SEGURIDAD EXTRA)
+# COMPROBAR PERMISOS DE ADMINISTRADOR
 # -------------------------------
 
 function Test-IsAdministrator {
@@ -33,11 +33,11 @@ if (-not (Test-IsAdministrator)) {
 # DEFINIR RUTAS GLOBALES
 # -------------------------------
 
-$Global:BKRoot        = Join-Path $env:LOCALAPPDATA "BlackConsole"
-$Global:BKConfigPath  = Join-Path $PSScriptRoot "config"
-$Global:BKCorePath    = Join-Path $PSScriptRoot "core"
-$Global:BKAppsPath    = Join-Path $PSScriptRoot "apps"
-$Global:BKToolsPath   = Join-Path $PSScriptRoot "tools"
+$Global:BKRoot       = Join-Path $env:LOCALAPPDATA "BlackConsole"
+$Global:BKConfigPath = Join-Path $PSScriptRoot "config"
+$Global:BKCorePath   = Join-Path $PSScriptRoot "core"
+$Global:BKAppsPath   = Join-Path $PSScriptRoot "apps"
+$Global:BKToolsPath  = Join-Path $PSScriptRoot "tools"
 
 # -------------------------------
 # CARGAR CONFIGURACION
@@ -95,7 +95,7 @@ function Show-MainMenu {
 
     do {
         Write-Host "MENU PRINCIPAL"
-        Write-Host "────────────────────────────"
+        Write-Host "--------------------------------"
         Write-Host ""
         Write-Host "1) Instalar software"
         Write-Host "2) Desinstalar software"
@@ -114,11 +114,14 @@ function Show-MainMenu {
                 break
             }
             default {
+                Write-Host ""
                 Write-Host "Opcion no implementada aun."
                 Write-Host ""
                 Pause
                 Clear-Host
-                Show-BlackConsoleBanner
+                if (Get-Command Show-BlackConsoleBanner -ErrorAction SilentlyContinue) {
+                    Show-BlackConsoleBanner
+                }
             }
         }
 
