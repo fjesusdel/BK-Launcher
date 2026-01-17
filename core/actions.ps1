@@ -163,16 +163,28 @@ function Install-BKVolumeControl {
 
 function Uninstall-BKVolumeControl {
 
-    Remove-Item `
-        (Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume") `
-        -Recurse -Force -ErrorAction SilentlyContinue
+    try {
+        # 1. Matar procesos AutoHotkey asociados
+        Get-Process AutoHotkey -ErrorAction SilentlyContinue | Stop-Process -Force
 
-    Remove-ItemProperty `
-        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
-        "ControlVolumenBK" -ErrorAction SilentlyContinue
+        # 2. Eliminar carpeta
+        $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
+        Remove-Item $targetDir -Recurse -Force -ErrorAction SilentlyContinue
 
-    return $true
+        # 3. Quitar inicio automático
+        Remove-ItemProperty `
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
+            "ControlVolumenBK" -ErrorAction SilentlyContinue
+
+        Write-BKLog "Control de volumen BK desinstalado completamente"
+        return $true
+
+    } catch {
+        Write-BKLog "Error desinstalando Control de volumen BK: $_" "ERROR"
+        return $false
+    }
 }
+
 
 # ==================================================
 # RADIAL APPS BK (RAINMETER)
