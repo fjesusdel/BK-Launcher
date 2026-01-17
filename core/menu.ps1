@@ -41,6 +41,18 @@ function Show-MainMenu {
 # ESTADO DEL SISTEMA
 # ==================================================
 
+function Draw-Bar {
+    param (
+        [int]$Percent,
+        [int]$Width = 20
+    )
+
+    $filled = [math]::Round(($Percent / 100) * $Width)
+    $empty  = $Width - $filled
+
+    return ("█" * $filled) + ("░" * $empty)
+}
+
 function Show-SystemStatus {
 
     Clear-Host
@@ -74,6 +86,67 @@ function Show-SystemStatus {
     Write-Host "Sistema       : $os"
 
     # -------------------------------
+    # CPU
+    # -------------------------------
+
+    Write-Host ""
+    Write-Host "CPU"
+    Write-Host "--------------------------------"
+
+    $cpu = Get-CimInstance Win32_Processor
+    $cpuLoad = (Get-Counter '\Processor(_Total)\% Processor Time'
+    ).CounterSamples.CookedValue
+
+    $cpuPercent = [math]::Round($cpuLoad)
+
+    Write-Host "Modelo        : $($cpu.Name)"
+    Write-Host "Nucleos       : $($cpu.NumberOfCores)"
+    Write-Host "Hilos         : $($cpu.NumberOfLogicalProcessors)"
+    Write-Host ("Uso           : {0}% {1}" -f `
+        $cpuPercent, (Draw-Bar $cpuPercent)) -ForegroundColor Cyan
+
+    # -------------------------------
+    # RAM
+    # -------------------------------
+
+    Write-Host ""
+    Write-Host "MEMORIA RAM"
+    Write-Host "--------------------------------"
+
+    $osInfo = Get-CimInstance Win32_OperatingSystem
+    $totalRAM = [math]::Round($osInfo.TotalVisibleMemorySize / 1MB, 2)
+    $freeRAM  = [math]::Round($osInfo.FreePhysicalMemory / 1MB, 2)
+    $usedRAM  = [math]::Round($totalRAM - $freeRAM, 2)
+    $ramPct   = [math]::Round(($usedRAM / $totalRAM) * 100)
+
+    Write-Host "Total         : $totalRAM GB"
+    Write-Host "En uso        : $usedRAM GB"
+    Write-Host "Libre         : $freeRAM GB"
+    Write-Host ("Uso           : {0}% {1}" -f `
+        $ramPct, (Draw-Bar $ramPct)) -ForegroundColor Magenta
+
+    # -------------------------------
+    # DISCO (C:)
+    # -------------------------------
+
+    Write-Host ""
+    Write-Host "DISCO"
+    Write-Host "--------------------------------"
+
+    $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
+
+    $totalDisk = [math]::Round($disk.Size / 1GB, 2)
+    $freeDisk  = [math]::Round($disk.FreeSpace / 1GB, 2)
+    $usedDisk  = [math]::Round($totalDisk - $freeDisk, 2)
+    $diskPct   = [math]::Round(($usedDisk / $totalDisk) * 100)
+
+    Write-Host "Unidad        : C:"
+    Write-Host "Total         : $totalDisk GB"
+    Write-Host "Libre         : $freeDisk GB"
+    Write-Host ("Uso           : {0}% {1}" -f `
+        $diskPct, (Draw-Bar $diskPct)) -ForegroundColor Yellow
+
+    # -------------------------------
     # APPS BLACK CONSOLE
     # -------------------------------
 
@@ -96,63 +169,6 @@ function Show-SystemStatus {
         Write-Host "INSTALADA" -ForegroundColor Green
     } else {
         Write-Host "NO INSTALADA" -ForegroundColor DarkGray
-    }
-
-    # -------------------------------
-    # RED (INFO PASIVA, SEGURA)
-    # -------------------------------
-
-    Write-Host ""
-    Write-Host "RED"
-    Write-Host "--------------------------------"
-    Write-Host ""
-
-    try {
-        $net = Get-NetAdapter |
-            Where-Object { $_.Status -eq "Up" } |
-            Select-Object -First 1
-
-        if (-not $net) {
-            throw "Sin adaptador activo"
-        }
-
-        $type =
-            if ($net.NdisPhysicalMedium -eq 9) { "Wi-Fi" }
-            elseif ($net.NdisPhysicalMedium -eq 14) { "Ethernet" }
-            else { "Desconocido" }
-
-        Write-Host "Interfaz activa : $($net.Name)"
-        Write-Host "Tipo de red     : $type"
-
-        # IP local
-        $ip = Get-NetIPAddress -InterfaceIndex $net.ifIndex `
-            -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-
-        if ($ip) {
-            Write-Host "IP local        : $($ip.IPAddress)"
-        }
-
-        # DNS
-        $dns = (Get-DnsClientServerAddress `
-            -InterfaceIndex $net.ifIndex `
-            -AddressFamily IPv4).ServerAddresses
-
-        if ($dns) {
-            Write-Host "DNS activos     : $($dns -join ', ')"
-        }
-
-        # Conectividad básica
-        Write-Host ""
-        Write-Host -NoNewline "Conectividad    : "
-        if (Test-Connection 1.1.1.1 -Count 1 -Quiet) {
-            Write-Host "OK" -ForegroundColor Green
-        } else {
-            Write-Host "SIN RESPUESTA" -ForegroundColor Red
-        }
-
-    } catch {
-        Write-Host "No se pudo obtener informacion de red." -ForegroundColor Red
     }
 
     Write-Host ""
