@@ -99,7 +99,7 @@ function Show-SystemStatus {
     }
 
     # -------------------------------
-    # RED (BITS)
+    # RED (INFO PASIVA, SEGURA)
     # -------------------------------
 
     Write-Host ""
@@ -108,45 +108,51 @@ function Show-SystemStatus {
     Write-Host ""
 
     try {
-        Write-Host "Probando conectividad..."
+        $net = Get-NetAdapter |
+            Where-Object { $_.Status -eq "Up" } |
+            Select-Object -First 1
 
-        # Ping
-        $ping = Test-Connection -ComputerName 1.1.1.1 -Count 2 -Quiet
-        if (-not $ping) {
-            throw "Sin conectividad IP"
+        if (-not $net) {
+            throw "Sin adaptador activo"
         }
 
-        $lat = (Test-Connection 1.1.1.1 -Count 2 |
-            Measure-Object -Property ResponseTime -Average).Average
+        $type =
+            if ($net.NdisPhysicalMedium -eq 9) { "Wi-Fi" }
+            elseif ($net.NdisPhysicalMedium -eq 14) { "Ethernet" }
+            else { "Desconocido" }
 
-        Write-Host "Latencia media       : $([math]::Round($lat,1)) ms" -ForegroundColor Cyan
+        Write-Host "Interfaz activa : $($net.Name)"
+        Write-Host "Tipo de red     : $type"
 
-        # Test BITS
+        # IP local
+        $ip = Get-NetIPAddress -InterfaceIndex $net.ifIndex `
+            -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+
+        if ($ip) {
+            Write-Host "IP local        : $($ip.IPAddress)"
+        }
+
+        # DNS
+        $dns = (Get-DnsClientServerAddress `
+            -InterfaceIndex $net.ifIndex `
+            -AddressFamily IPv4).ServerAddresses
+
+        if ($dns) {
+            Write-Host "DNS activos     : $($dns -join ', ')"
+        }
+
+        # Conectividad básica
         Write-Host ""
-        Write-Host "Probando velocidad de descarga..."
-
-        $url  = "https://speed.hetzner.de/10MB.bin"
-        $dest = Join-Path $env:TEMP "bk_speedtest.bin"
-
-        if (Test-Path $dest) {
-            Remove-Item $dest -Force
+        Write-Host -NoNewline "Conectividad    : "
+        if (Test-Connection 1.1.1.1 -Count 1 -Quiet) {
+            Write-Host "OK" -ForegroundColor Green
+        } else {
+            Write-Host "SIN RESPUESTA" -ForegroundColor Red
         }
-
-        $start = Get-Date
-        Start-BitsTransfer -Source $url -Destination $dest -ErrorAction Stop
-        $end = Get-Date
-
-        $sizeMB = 10
-        $seconds = ($end - $start).TotalSeconds
-        $mbps = [math]::Round((($sizeMB * 8) / $seconds), 2)
-
-        Write-Host "Velocidad descarga   : $mbps Mbps" -ForegroundColor Green
-
-        Remove-Item $dest -Force -ErrorAction SilentlyContinue
 
     } catch {
-        Write-Host "No se pudo realizar el test de red." -ForegroundColor Red
-        Write-Host "Posible firewall, proxy o red restringida." -ForegroundColor DarkGray
+        Write-Host "No se pudo obtener informacion de red." -ForegroundColor Red
     }
 
     Write-Host ""
