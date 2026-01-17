@@ -132,7 +132,7 @@ function Show-ToolsMenu {
                 Pause
             }
 
-            "0" { break }
+            "0" { return }
         }
 
     } while ($true)
