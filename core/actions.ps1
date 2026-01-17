@@ -1,152 +1,251 @@
 # ==================================================
-# BK-LAUNCHER - SELECTION
-# ==================================================
-# - Seleccion por numeros separados por comas
-# - Install  : solo apps de terceros
-# - Uninstall: terceros + apps de Windows
+# BK-LAUNCHER - ACTIONS (FIXED - SAFE v2)
 # ==================================================
 
-# --------------------------------------------------
-# MENU: INSTALAR SOFTWARE
-# --------------------------------------------------
+# -------------------------------
+# UTILIDADES
+# -------------------------------
 
-function Show-InstallMenu {
-
-    $apps = Select-BKApplications -Mode install
-    if (-not $apps -or $apps.Count -eq 0) {
-        return
-    }
-
-    $ids = $apps | Select-Object -ExpandProperty Id
-    Install-BKApplicationsWithProgress $ids
+function Get-BKApplicationById {
+    param ([string]$Id)
+    Get-BKApplications | Where-Object { $_.Id -eq $Id }
 }
 
-# --------------------------------------------------
-# MENU: DESINSTALAR SOFTWARE
-# --------------------------------------------------
-
-function Show-UninstallMenu {
-
-    $apps = Select-BKApplications -Mode uninstall
-    if (-not $apps -or $apps.Count -eq 0) {
-        return
-    }
-
-    $ids = $apps | Select-Object -ExpandProperty Id
-    Uninstall-BKApplicationsWithProgress $ids
-}
-
-# --------------------------------------------------
-# MENU: HERRAMIENTAS BLACK CONSOLE
-# --------------------------------------------------
-
-function Show-ToolsMenu {
-
-    do {
-        Clear-Host
-        Show-BlackConsoleBanner
-
-        Write-Host "HERRAMIENTAS BLACK CONSOLE"
-        Write-Host "--------------------------------"
-        Write-Host ""
-        Write-Host "1) Instalar Control de volumen BK"
-        Write-Host "2) Desinstalar Control de volumen BK"
-        Write-Host "3) Instalar Radial Apps BK"
-        Write-Host "4) Desinstalar Radial Apps BK"
-        Write-Host ""
-        Write-Host "0) Volver"
-        Write-Host ""
-
-        $opt = Read-Host "Seleccione una opcion"
-
-        switch ($opt) {
-            "1" { Install-BKVolumeControl | Out-Null; Pause }
-            "2" { Uninstall-BKVolumeControl | Out-Null; Pause }
-            "3" { Install-BKRadialApps     | Out-Null; Pause }
-            "4" { Uninstall-BKRadialApps   | Out-Null; Pause }
-            "0" { break }
-            default { Pause }
-        }
-
-    } while ($true)
-}
-
-# --------------------------------------------------
-# SELECCION GENERICA DE APPS
-# --------------------------------------------------
-
-function Select-BKApplications {
+function Invoke-BKDownload {
     param (
-        [Parameter(Mandatory)]
-        [ValidateSet("install","uninstall")]
-        [string]$Mode
+        [string]$Url,
+        [string]$OutFile
     )
 
-    $allApps = Get-BKApplicationsStatus | Sort-Object Name
-
-    if ($Mode -eq "install") {
-        $thirdPartyApps = $allApps | Where-Object { $_.Type -eq "thirdparty" }
-        $windowsApps   = @()
+    try {
+        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+        return $true
+    } catch {
+        Write-BKLog "Error descargando $Url" "ERROR"
+        return $false
     }
-    else {
-        $thirdPartyApps = $allApps | Where-Object { $_.Type -eq "thirdparty" }
-        $windowsApps   = $allApps | Where-Object { $_.Type -eq "windows" }
+}
+
+function Start-BKInstaller {
+    param (
+        [string]$FilePath,
+        [string]$Arguments = ""
+    )
+
+    if (-not (Test-Path $FilePath)) {
+        Write-Host "Instalador no encontrado."
+        return
     }
 
-    do {
+    Write-Host "Ejecutando instalador..."
+
+    # 🔧 FIX REAL:
+    # Start-Process NO admite ArgumentList vacío
+    if ([string]::IsNullOrWhiteSpace($Arguments)) {
+        $proc = Start-Process -FilePath $FilePath -PassThru
+    } else {
+        $proc = Start-Process -FilePath $FilePath -ArgumentList $Arguments -PassThru
+    }
+
+    # Esperar de forma segura a que termine
+    if ($proc -and $proc.Id) {
+        Wait-Process -Id $proc.Id
+    }
+
+    Write-Host "Instalador finalizado."
+}
+
+# ==================================================
+# INSTALACION SOFTWARE
+# ==================================================
+
+function Install-BKApplicationsWithProgress {
+    param ([string[]]$Ids)
+
+    foreach ($id in $Ids) {
+
+        $app = Get-BKApplicationById $id
+        if (-not $app) { continue }
+
         Clear-Host
         Show-BlackConsoleBanner
 
-        Write-Host "SELECCIONAR APLICACIONES A $($Mode.ToUpper())"
+        Write-Host "INSTALANDO SOFTWARE"
         Write-Host "--------------------------------"
-        Write-Host ""
-        Write-Host "Numeros separados por comas (ej: 1,3,5)"
-        Write-Host "ENTER = continuar | 0 = cancelar"
+        Write-Host "Aplicacion : $($app.Name)"
         Write-Host ""
 
-        $indexMap = @{}
-        $index = 1
+        $tmp = Join-Path $env:TEMP "$id-installer.exe"
 
-        Write-Host "SOFTWARES Y APLICACIONES"
-        Write-Host "--------------------------------"
+        switch ($id) {
 
-        foreach ($app in $thirdPartyApps) {
-            $state = if ($app.Installed) { "(INSTALADA)" } else { "(NO INSTALADA)" }
-            Write-Host ("{0,2}) {1} {2}" -f $index, $app.Name, $state)
-            $indexMap[$index] = $app
-            $index++
-        }
+            "battlenet" {
+                if (Invoke-BKDownload `
+                    "https://www.battle.net/download/getInstallerForGame?os=win&gameProgram=BATTLENET_APP&version=Live" `
+                    $tmp) {
 
-        if ($Mode -eq "uninstall" -and $windowsApps.Count -gt 0) {
-            Write-Host ""
-            Write-Host "APPS DE WINDOWS"
-            Write-Host "--------------------------------"
+                    Start-BKInstaller $tmp
+                }
+            }
 
-            foreach ($app in $windowsApps) {
-                $state = if ($app.Installed) { "(INSTALADA)" } else { "(NO INSTALADA)" }
-                Write-Host ("{0,2}) {1} {2}" -f $index, $app.Name, $state)
-                $indexMap[$index] = $app
-                $index++
+            "chrome" {
+                if (Invoke-BKDownload `
+                    "https://www.google.com/chrome/?standalone=1&platform=win64" `
+                    $tmp) {
+
+                    Start-BKInstaller $tmp "/silent /install"
+                }
+            }
+
+            "discord" {
+                if (Invoke-BKDownload `
+                    "https://discord.com/api/download?platform=win" `
+                    $tmp) {
+
+                    Start-BKInstaller $tmp "/S"
+                }
+            }
+
+            "steam" {
+                if (Invoke-BKDownload `
+                    "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe" `
+                    $tmp) {
+
+                    Start-BKInstaller $tmp "/S"
+                }
+            }
+
+            "firefox" {
+                if (Invoke-BKDownload `
+                    "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=es-ES" `
+                    $tmp) {
+
+                    Start-BKInstaller $tmp "-ms"
+                }
+            }
+
+            "7zip" {
+                if (Invoke-BKDownload `
+                    "https://www.7-zip.org/a/7z2301-x64.exe" `
+                    $tmp) {
+
+                    Start-BKInstaller $tmp "/S"
+                }
+            }
+
+            default {
+                Write-Host "No hay instalador definido para $id"
             }
         }
 
+        if (Test-Path $tmp) {
+            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        }
+
         Write-Host ""
-        $input = Read-Host "Seleccion"
+        Write-Host "Instalacion terminada para $($app.Name)."
+        Pause
+    }
+}
 
-        if ($input -eq "0") { return $null }
-        if ([string]::IsNullOrWhiteSpace($input)) { return @() }
+# ==================================================
+# DESINSTALACION SOFTWARE
+# ==================================================
 
-        $selection = @()
-        foreach ($part in $input -split ",") {
-            if ($part.Trim() -match '^\d+$') {
-                $num = [int]$part.Trim()
-                if ($indexMap.ContainsKey($num)) {
-                    $selection += $indexMap[$num]
+function Uninstall-BKApplicationsWithProgress {
+    param ([string[]]$Ids)
+
+    foreach ($id in $Ids) {
+
+        $app = Get-BKApplicationById $id
+        if (-not $app) { continue }
+
+        Clear-Host
+        Show-BlackConsoleBanner
+
+        Write-Host "DESINSTALANDO SOFTWARE"
+        Write-Host "--------------------------------"
+        Write-Host "Aplicacion : $($app.Name)"
+        Write-Host ""
+
+        $uninstalled = $false
+
+        $keys = @(
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+        )
+
+        foreach ($key in $keys) {
+            Get-ItemProperty $key -ErrorAction SilentlyContinue | ForEach-Object {
+                if ($_.DisplayName -and $_.DisplayName -like "*$($app.Name)*") {
+                    if ($_.UninstallString) {
+                        Write-Host "Lanzando desinstalador..."
+                        Start-Process "cmd.exe" "/c `"$($_.UninstallString)`"" -Wait
+                        $uninstalled = $true
+                    }
                 }
             }
         }
 
-        return $selection
+        if (-not $uninstalled) {
+            Write-Host "No se encontro desinstalador automatico. Puede requerir desinstalacion manual."
+        }
 
-    } while ($true)
+        Write-Host ""
+        Write-Host "Proceso de desinstalacion terminado para $($app.Name)."
+        Pause
+    }
+}
+
+# ==================================================
+# CONTROL DE VOLUMEN BK
+# ==================================================
+
+function Install-BKVolumeControl {
+
+    try {
+        $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
+        $exe = Join-Path $targetDir "AutoHotkey.exe"
+        $ahk = Join-Path $targetDir "volume.ahk"
+
+        $baseUrl = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
+
+        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+
+        Invoke-WebRequest "$baseUrl/AutoHotkey.exe" -OutFile $exe -UseBasicParsing
+        Invoke-WebRequest "$baseUrl/volume.ahk" -OutFile $ahk -UseBasicParsing
+
+        Start-Process $exe "`"$ahk`"" -WindowStyle Hidden
+
+        Write-BKLog "Control de volumen BK instalado correctamente"
+        return $true
+
+    } catch {
+        Write-BKLog "Error instalando Control de volumen BK: $_" "ERROR"
+        return $false
+    }
+}
+
+function Uninstall-BKVolumeControl {
+
+    Get-Process AutoHotkey -ErrorAction SilentlyContinue | Stop-Process -Force
+    Remove-Item "$env:LOCALAPPDATA\BlackConsole\tools\volume" -Recurse -Force -ErrorAction SilentlyContinue
+    Write-BKLog "Control de volumen BK desinstalado"
+    return $true
+}
+
+# ==================================================
+# RADIAL APPS BK
+# ==================================================
+
+function Install-BKRadialApps {
+    Write-Host "Instalando Radial Apps BK..."
+    Start-Process "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin"
+    return $true
+}
+
+function Uninstall-BKRadialApps {
+    Remove-Item "$env:USERPROFILE\Documents\Rainmeter\Skins\RadialLauncher" -Recurse -Force -ErrorAction SilentlyContinue
+    Write-BKLog "Radial Apps BK desinstalado"
+    return $true
 }
