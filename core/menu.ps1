@@ -2,11 +2,6 @@
 # BK-LAUNCHER - MENU
 # ==================================================
 
-if ($Global:BKConfig.UseUXMenu -and (Get-Command Show-MainMenuUX -ErrorAction SilentlyContinue)) {
-    Show-MainMenuUX
-    return
-}
-
 function Show-MainMenu {
 
     do {
