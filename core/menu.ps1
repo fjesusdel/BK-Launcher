@@ -38,164 +38,70 @@ function Show-MainMenu {
 }
 
 # ==================================================
-# MENU INSTALAR SOFTWARE
+# ESTADO DEL SISTEMA (IMPLEMENTADO)
 # ==================================================
 
-function Show-InstallMenu {
-
-    $apps = Select-BKApplications -Mode "install"
-
-    if (-not $apps -or $apps.Count -eq 0) {
-        Write-Host ""
-        Write-Host "No se seleccionaron aplicaciones."
-        Pause
-        return
-    }
+function Show-SystemStatus {
 
     Clear-Host
     Show-BlackConsoleBanner
 
-    Write-Host "INSTALAR SOFTWARE"
+    Write-Host "ESTADO DEL SISTEMA"
     Write-Host "--------------------------------"
     Write-Host ""
-    Write-Host "Se instalaran las siguientes aplicaciones:"
+
+    # Usuario / permisos
+    $identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    $isAdmin   = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+    Write-Host "Usuario actual : $($identity.Name)"
+    Write-Host "Administrador  : $($isAdmin)"
     Write-Host ""
 
-    foreach ($app in $apps) {
-        Write-Host "- $($app.Name)"
-    }
-
+    # Sistema operativo
+    $os = Get-CimInstance Win32_OperatingSystem
+    Write-Host "Sistema operativo : $($os.Caption)"
+    Write-Host "Arquitectura      : $($os.OSArchitecture)"
     Write-Host ""
-    $confirm = Read-Host "Desea continuar? [S/N]"
 
-    if ($confirm.Trim().ToUpper() -ne "S") {
-        Write-Host "Operacion cancelada."
-        Pause
-        return
-    }
-
-    Install-BKApplicationsWithProgress ($apps | ForEach-Object { $_.Id })
-
+    # Memoria RAM
+    $ramGB = [Math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
+    Write-Host "RAM total : $ramGB GB"
     Write-Host ""
-    Write-Host "Instalacion finalizada."
+
+    # Disco sistema
+    $systemDrive = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
+    $freeGB = [Math]::Round($systemDrive.FreeSpace / 1GB, 2)
+    $totalGB = [Math]::Round($systemDrive.Size / 1GB, 2)
+
+    Write-Host "Disco sistema (C:)"
+    Write-Host " - Libre : $freeGB GB"
+    Write-Host " - Total : $totalGB GB"
+    Write-Host ""
+
+    # Rutas Black Console
+    Write-Host "Black Console"
+    Write-Host " - Runtime : $($Global:BKRoot)\runtime"
+    Write-Host " - Tools   : $($Global:BKRoot)\tools"
+    Write-Host " - Data    : $($Global:BKRoot)\data"
+    Write-Host ""
+
+    # Estado herramientas BK
+    $volumeInstalled = Test-Path "$env:LOCALAPPDATA\BlackConsole\tools\volume"
+    $radialInstalled = Test-Path "$env:USERPROFILE\Documents\Rainmeter\Skins\RadialLauncher"
+
+    Write-Host "Herramientas BK"
+    Write-Host " - Control de volumen : $($volumeInstalled)"
+    Write-Host " - Radial Apps BK    : $($radialInstalled)"
+    Write-Host ""
+
     Pause
-}
-
-# ==================================================
-# MENU DESINSTALAR SOFTWARE
-# ==================================================
-
-function Show-UninstallMenu {
-
-    $apps = Select-BKApplications -Mode "uninstall"
-
-    if (-not $apps -or $apps.Count -eq 0) {
-        Write-Host ""
-        Write-Host "No se seleccionaron aplicaciones."
-        Pause
-        return
-    }
-
-    Clear-Host
-    Show-BlackConsoleBanner
-
-    Write-Host "DESINSTALAR SOFTWARE"
-    Write-Host "--------------------------------"
-    Write-Host ""
-    Write-Host "Se desinstalaran las siguientes aplicaciones:"
-    Write-Host ""
-
-    foreach ($app in $apps) {
-        Write-Host "- $($app.Name)"
-    }
-
-    Write-Host ""
-    $confirm = Read-Host "Desea continuar? [S/N]"
-
-    if ($confirm.Trim().ToUpper() -ne "S") {
-        Write-Host "Operacion cancelada."
-        Pause
-        return
-    }
-
-    Uninstall-BKApplicationsWithProgress ($apps | ForEach-Object { $_.Id })
-
-    Write-Host ""
-    Write-Host "Desinstalacion finalizada."
-    Pause
-}
-
-# ==================================================
-# HERRAMIENTAS BLACK CONSOLE
-# ==================================================
-
-function Show-ToolsMenu {
-
-    do {
-        Clear-Host
-        Show-BlackConsoleBanner
-
-        Write-Host "HERRAMIENTAS BLACK CONSOLE"
-        Write-Host "--------------------------------"
-        Write-Host ""
-        Write-Host "1) Instalar Control de volumen BK"
-        Write-Host "2) Desinstalar Control de volumen BK"
-        Write-Host "3) Instalar Radial Apps BK"
-        Write-Host "4) Desinstalar Radial Apps BK"
-        Write-Host ""
-        Write-Host "0) Volver"
-        Write-Host ""
-
-        $option = Read-Host "Seleccione una opcion"
-
-        switch ($option) {
-
-            "1" {
-                Clear-Host
-                Show-BlackConsoleBanner
-                Write-Host "Instalando Control de volumen BK..."
-                Install-BKVolumeControl | Out-Null
-                Pause
-            }
-
-            "2" {
-                Clear-Host
-                Show-BlackConsoleBanner
-                Write-Host "Desinstalando Control de volumen BK..."
-                Uninstall-BKVolumeControl | Out-Null
-                Pause
-            }
-
-            "3" {
-                Clear-Host
-                Show-BlackConsoleBanner
-                Write-Host "Instalando Radial Apps BK..."
-                Install-BKRadialApps | Out-Null
-                Pause
-            }
-
-            "4" {
-                Clear-Host
-                Show-BlackConsoleBanner
-                Write-Host "Desinstalando Radial Apps BK..."
-                Uninstall-BKRadialApps | Out-Null
-                Pause
-            }
-
-            "0" { return }
-        }
-
-    } while ($true)
 }
 
 # ==================================================
 # RESTO
 # ==================================================
-
-function Show-SystemStatus {
-    Write-Host "Estado del sistema."
-    Pause
-}
 
 function Show-LogsMenu {
     Open-LastBKLog
