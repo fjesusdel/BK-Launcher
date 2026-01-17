@@ -4,7 +4,7 @@
 
 $Global:BKConfig = @{
     Author  = "Fran Delgado"
-    Version = "0.1.0-dev"
+    Version = "1.5.8-dev"
 }
 
 $Global:StartupPhrases = @(
