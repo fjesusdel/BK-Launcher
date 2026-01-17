@@ -255,14 +255,17 @@ function Install-BKRadialApps {
 
         Write-Host ""
         Write-Host "Abriendo instalador de Rainmeter..."
-        Write-Host "Complete la instalación y cierre el instalador."
+        Write-Host "Cuando termine, vuelva aqui y pulse ENTER."
         Write-Host ""
 
-        # 🔑 CLAVE: ejecutar el archivo LOCAL
-        Start-Process -FilePath $tmpSkin -Wait
+        # 🔑 CLAVE: SIN -Wait (archivo asociado)
+        Start-Process -FilePath $tmpSkin
+
+        # Bloqueo controlado por el launcher, no por Windows
+        Pause
 
         Write-Host ""
-        Write-Host "Instalación de Radial Apps BK finalizada."
+        Write-Host "Radial Apps BK instalado correctamente."
         Pause
 
     } catch {
