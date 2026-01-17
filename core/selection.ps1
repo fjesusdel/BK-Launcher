@@ -3,8 +3,77 @@
 # ==================================================
 # - Seleccion por numeros separados por comas
 # - Install  : solo apps de terceros
-# - Uninstall: terceros + apps de Windows (separadas)
+# - Uninstall: terceros + apps de Windows
 # ==================================================
+
+# --------------------------------------------------
+# MENU: INSTALAR SOFTWARE
+# --------------------------------------------------
+
+function Show-InstallMenu {
+
+    $apps = Select-BKApplications -Mode install
+    if (-not $apps -or $apps.Count -eq 0) {
+        return
+    }
+
+    $ids = $apps | Select-Object -ExpandProperty Id
+    Install-BKApplicationsWithProgress $ids
+}
+
+# --------------------------------------------------
+# MENU: DESINSTALAR SOFTWARE
+# --------------------------------------------------
+
+function Show-UninstallMenu {
+
+    $apps = Select-BKApplications -Mode uninstall
+    if (-not $apps -or $apps.Count -eq 0) {
+        return
+    }
+
+    $ids = $apps | Select-Object -ExpandProperty Id
+    Uninstall-BKApplicationsWithProgress $ids
+}
+
+# --------------------------------------------------
+# MENU: HERRAMIENTAS BLACK CONSOLE
+# --------------------------------------------------
+
+function Show-ToolsMenu {
+
+    do {
+        Clear-Host
+        Show-BlackConsoleBanner
+
+        Write-Host "HERRAMIENTAS BLACK CONSOLE"
+        Write-Host "--------------------------------"
+        Write-Host ""
+        Write-Host "1) Instalar Control de volumen BK"
+        Write-Host "2) Desinstalar Control de volumen BK"
+        Write-Host "3) Instalar Radial Apps BK"
+        Write-Host "4) Desinstalar Radial Apps BK"
+        Write-Host ""
+        Write-Host "0) Volver"
+        Write-Host ""
+
+        $opt = Read-Host "Seleccione una opcion"
+
+        switch ($opt) {
+            "1" { Install-BKVolumeControl | Out-Null; Pause }
+            "2" { Uninstall-BKVolumeControl | Out-Null; Pause }
+            "3" { Install-BKRadialApps     | Out-Null; Pause }
+            "4" { Uninstall-BKRadialApps   | Out-Null; Pause }
+            "0" { break }
+            default { Pause }
+        }
+
+    } while ($true)
+}
+
+# --------------------------------------------------
+# SELECCION GENERICA DE APPS
+# --------------------------------------------------
 
 function Select-BKApplications {
     param (
@@ -38,10 +107,6 @@ function Select-BKApplications {
         $indexMap = @{}
         $index = 1
 
-        # -------------------------------
-        # SOFTWARES Y APLICACIONES
-        # -------------------------------
-
         Write-Host "SOFTWARES Y APLICACIONES"
         Write-Host "--------------------------------"
 
@@ -51,10 +116,6 @@ function Select-BKApplications {
             $indexMap[$index] = $app
             $index++
         }
-
-        # -------------------------------
-        # APPS DE WINDOWS (SOLO EN UNINSTALL)
-        # -------------------------------
 
         if ($Mode -eq "uninstall" -and $windowsApps.Count -gt 0) {
             Write-Host ""
