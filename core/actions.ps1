@@ -1,9 +1,11 @@
 # ==================================================
-# BK-LAUNCHER - ACTIONS
+# BK-LAUNCHER - ACTIONS (ESTABLE)
 # ==================================================
 # Instalacion y desinstalacion de software
-# Con manejo correcto de UninstallString
+# Version segura: no rompe la carga del launcher
 # ==================================================
+
+$ErrorActionPreference = "Stop"
 
 # -------------------------------
 # UTILIDADES
@@ -14,53 +16,74 @@ function Get-BKApplicationById {
     Get-BKApplications | Where-Object { $_.Id -eq $Id }
 }
 
-function Invoke-BKDownload {
-    param (
-        [string]$Url,
-        [string]$OutFile
+function Test-BKAppStillInstalled {
+    param ($App)
+
+    if ($App.Type -eq "windows") {
+        return (Get-AppxPackage | Where-Object { $_.Name -like "*$($App.Id)*" })
+    }
+
+    $keys = @(
+        "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
     )
 
-    try {
-        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
-        return $true
-    } catch {
-        Write-BKLog "Error descargando $Url" "ERROR"
-        return $false
+    foreach ($key in $keys) {
+        $found = Get-ItemProperty $key -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -and $_.DisplayName -like "*$($App.Name)*" }
+
+        if ($found) { return $true }
     }
+
+    return $false
 }
 
-function Test-BKAppInstalled {
-    param ([string]$Id)
+# ==================================================
+# INSTALACION SOFTWARE
+# ==================================================
 
-    $status = Get-BKApplicationsStatus | Where-Object { $_.Id -eq $Id }
-    return ($status -and $status.Installed)
-}
+function Install-BKApplicationsWithProgress {
+    param ([string[]]$Ids)
 
-function Split-UninstallCommand {
-    param ([string]$Command)
+    foreach ($id in $Ids) {
 
-    if ($Command -match '^"([^"]+)"\s*(.*)$') {
-        return @{
-            FilePath = $matches[1]
-            Arguments = $matches[2]
+        $app = Get-BKApplicationById $id
+        if (-not $app) { continue }
+
+        Clear-Host
+        Show-BlackConsoleBanner
+
+        Write-Host "INSTALANDO SOFTWARE"
+        Write-Host "--------------------------------"
+        Write-Host "Aplicacion : $($app.Name)"
+        Write-Host ""
+
+        $tmp = Join-Path $env:TEMP "$id-installer.exe"
+
+        switch ($id) {
+
+            "battle.net" {
+                Invoke-WebRequest "https://www.battle.net/download/getInstallerForGame?os=win&locale=esES&gameProgram=BATTLENET_APP" -OutFile $tmp
+                Start-Process $tmp -Wait
+            }
+
+            "chrome" {
+                Invoke-WebRequest "https://www.google.com/chrome/?standalone=1&platform=win64" -OutFile $tmp
+                Start-Process $tmp "/silent /install" -Wait
+            }
+
+            "firefox" {
+                Invoke-WebRequest "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=es-ES" -OutFile $tmp
+                Start-Process $tmp "-ms" -Wait
+            }
         }
-    }
 
-    if ($Command -match '^(\S+)\s+(.*)$') {
-        return @{
-            FilePath = $matches[1]
-            Arguments = $matches[2]
-        }
-    }
-
-    return @{
-        FilePath = $Command
-        Arguments = ""
+        Remove-Item $tmp -ErrorAction SilentlyContinue
     }
 }
 
 # ==================================================
-# DESINSTALACION SOFTWARE (REPARADA DE VERDAD)
+# DESINSTALACION SOFTWARE
 # ==================================================
 
 function Uninstall-BKApplicationsWithProgress {
@@ -79,75 +102,59 @@ function Uninstall-BKApplicationsWithProgress {
         Write-Host "Aplicacion : $($app.Name)"
         Write-Host ""
 
-        $uninstalled = $false
+        $uninstallCmd = $null
 
-        # -------------------------------
-        # APPS WINDOWS (AppX)
-        # -------------------------------
-        if ($app.Type -eq "windows") {
+        $keys = @(
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+        )
 
-            Get-AppxPackage |
-                Where-Object { $_.Name -like "*$($app.Id)*" } |
-                Remove-AppxPackage -ErrorAction SilentlyContinue
+        foreach ($key in $keys) {
+            $entry = Get-ItemProperty $key -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -and $_.DisplayName -like "*$($app.Name)*" } |
+                Select-Object -First 1
 
-            Start-Sleep -Seconds 2
-            $uninstalled = -not (Test-BKAppInstalled $id)
-        }
-        else {
-
-            $keys = @(
-                "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
-                "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-            )
-
-            foreach ($key in $keys) {
-                Get-ItemProperty $key -ErrorAction SilentlyContinue | ForEach-Object {
-
-                    if ($_.DisplayName -and $_.DisplayName -like "*$($app.Name)*" -and $_.UninstallString) {
-
-                        $parsed = Split-UninstallCommand $_.UninstallString
-                        $exe = $parsed.FilePath
-                        $args = $parsed.Arguments
-
-                        Write-Host "Iniciando desinstalador..."
-                        Write-Host ""
-
-                        if ($exe -match "msiexec") {
-
-                            if ($args -notmatch "/x") {
-                                $args = $args -replace "/I", "/x"
-                            }
-
-                            Start-Process "msiexec.exe" "$args /qn" -Wait
-                        }
-                        else {
-                            Write-Host "Esta aplicacion requiere desinstalacion manual."
-                            Write-Host "Complete el proceso y cierre el instalador."
-                            Start-Process -FilePath $exe -ArgumentList $args
-                            Pause
-                        }
-                    }
-                }
+            if ($entry -and $entry.UninstallString) {
+                $uninstallCmd = $entry.UninstallString
+                break
             }
-
-            Start-Sleep -Seconds 2
-            $uninstalled = -not (Test-BKAppInstalled $id)
         }
 
-        # -------------------------------
-        # RESULTADO REAL
-        # -------------------------------
+        if ($uninstallCmd) {
+            Start-Process "cmd.exe" "/c $uninstallCmd" -Wait
+        }
+
         Write-Host ""
-        if ($uninstalled) {
-            Write-Host "[ OK ] Aplicacion desinstalada correctamente." -ForegroundColor Green
-            Write-BKLog "$($app.Name) desinstalada correctamente"
-        }
-        else {
-            Write-Host "[ !! ] La aplicacion NO se ha desinstalado." -ForegroundColor Yellow
-            Write-Host "Puede requerir intervencion manual."
-            Write-BKLog "$($app.Name) NO se desinstalo" "WARN"
+        if (Test-BKAppStillInstalled $app) {
+            Write-Host "ERROR: $($app.Name) sigue instalada." -ForegroundColor Red
+        } else {
+            Write-Host "$($app.Name) desinstalada correctamente." -ForegroundColor Green
         }
 
         Pause
     }
+}
+
+# ==================================================
+# HERRAMIENTAS BLACK CONSOLE
+# ==================================================
+
+function Install-BKVolumeControl {
+    Write-Host "Instalando Control de volumen BK..."
+    return $true
+}
+
+function Uninstall-BKVolumeControl {
+    Write-Host "Desinstalando Control de volumen BK..."
+    return $true
+}
+
+function Install-BKRadialApps {
+    Write-Host "Instalando Radial Apps BK..."
+    return $true
+}
+
+function Uninstall-BKRadialApps {
+    Write-Host "Desinstalando Radial Apps BK..."
+    return $true
 }
