@@ -1,8 +1,8 @@
 # ==================================================
 # BK-LAUNCHER - ACTIONS
 # ==================================================
-# Instalacion y desinstalacion silenciosa
-# Incluye herramientas Black Console
+# Instalacion y desinstalacion de software
+# Con validacion REAL post-operacion
 # ==================================================
 
 # -------------------------------
@@ -29,8 +29,20 @@ function Invoke-BKDownload {
     }
 }
 
+function Test-BKAppInstalled {
+    param ([string]$Id)
+
+    $app = Get-BKApplicationById $Id
+    if (-not $app) { return $false }
+
+    $status = Get-BKApplicationsStatus | Where-Object { $_.Id -eq $Id }
+    if (-not $status) { return $false }
+
+    return $status.Installed
+}
+
 # ==================================================
-# INSTALACION SOFTWARE TERCEROS
+# INSTALACION SOFTWARE
 # ==================================================
 
 function Install-BKApplicationsWithProgress {
@@ -89,7 +101,7 @@ function Install-BKApplicationsWithProgress {
 }
 
 # ==================================================
-# DESINSTALACION SOFTWARE
+# DESINSTALACION SOFTWARE (REPARADA)
 # ==================================================
 
 function Uninstall-BKApplicationsWithProgress {
@@ -108,27 +120,80 @@ function Uninstall-BKApplicationsWithProgress {
         Write-Host "Aplicacion : $($app.Name)"
         Write-Host ""
 
+        $uninstalled = $false
+
+        # -------------------------------
+        # APPS WINDOWS (AppX)
+        # -------------------------------
         if ($app.Type -eq "windows") {
+
             Get-AppxPackage |
                 Where-Object { $_.Name -like "*$($app.Id)*" } |
                 Remove-AppxPackage -ErrorAction SilentlyContinue
-            continue
+
+            Start-Sleep -Seconds 2
+            $uninstalled = -not (Test-BKAppInstalled $id)
         }
 
-        $keys = @(
-            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
-            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-        )
+        else {
 
-        foreach ($key in $keys) {
-            Get-ItemProperty $key -ErrorAction SilentlyContinue | ForEach-Object {
-                if ($_.DisplayName -and $_.DisplayName -like "*$($app.Name)*") {
-                    if ($_.UninstallString) {
-                        Start-Process "cmd.exe" "/c $($_.UninstallString) /quiet" -Wait
+            $keys = @(
+                "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+                "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+            )
+
+            foreach ($key in $keys) {
+
+                Get-ItemProperty $key -ErrorAction SilentlyContinue | ForEach-Object {
+
+                    if ($_.DisplayName -and $_.DisplayName -like "*$($app.Name)*") {
+
+                        if (-not $_.UninstallString) { return }
+
+                        $cmd = $_.UninstallString.Trim()
+
+                        Write-Host "Iniciando desinstalador..."
+                        Write-Host ""
+
+                        # MSI
+                        if ($cmd -match "msiexec") {
+
+                            if ($cmd -notmatch "/x") {
+                                $cmd = $cmd -replace "/I", "/x"
+                            }
+
+                            Start-Process "msiexec.exe" "$cmd /qn" -Wait
+                        }
+                        else {
+                            # NO silencioso → interactivo
+                            Write-Host "Esta aplicacion requiere desinstalacion manual."
+                            Write-Host "Complete el proceso y cierre el instalador."
+                            Start-Process $cmd
+                            Pause
+                        }
                     }
                 }
             }
+
+            Start-Sleep -Seconds 2
+            $uninstalled = -not (Test-BKAppInstalled $id)
         }
+
+        # -------------------------------
+        # RESULTADO REAL
+        # -------------------------------
+        Write-Host ""
+        if ($uninstalled) {
+            Write-Host "[ OK ] Aplicacion desinstalada correctamente." -ForegroundColor Green
+            Write-BKLog "$($app.Name) desinstalada correctamente"
+        }
+        else {
+            Write-Host "[ !! ] La aplicacion NO se ha desinstalado." -ForegroundColor Yellow
+            Write-Host "Puede requerir intervencion manual."
+            Write-BKLog "$($app.Name) NO se desinstalo" "WARN"
+        }
+
+        Pause
     }
 }
 
@@ -137,7 +202,6 @@ function Uninstall-BKApplicationsWithProgress {
 # ==================================================
 
 function Install-BKVolumeControl {
-
     try {
         $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
         $exe = Join-Path $targetDir "AutoHotkey.exe"
@@ -145,165 +209,40 @@ function Install-BKVolumeControl {
 
         $baseUrl = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
 
-        # 1. Crear carpeta
         New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 
-        # 2. Descargar AutoHotkey portable
-        Invoke-WebRequest `
-            "$baseUrl/AutoHotkey.exe" `
-            -OutFile $exe `
-            -UseBasicParsing
+        Invoke-WebRequest "$baseUrl/AutoHotkey.exe" -OutFile $exe -UseBasicParsing
+        Invoke-WebRequest "$baseUrl/volume.ahk" -OutFile $ahk -UseBasicParsing
 
-        # 3. Descargar script
-        Invoke-WebRequest `
-            "$baseUrl/volume.ahk" `
-            -OutFile $ahk `
-            -UseBasicParsing
-
-        # 4. Validar
-        if (-not (Test-Path $exe) -or -not (Test-Path $ahk)) {
-            Write-BKLog "Fallo descargando Control de Volumen BK" "ERROR"
-            return $false
-        }
-
-        # 5. Lanzar proceso
         Start-Process $exe "`"$ahk`"" -WindowStyle Hidden
 
-        # 6. Registrar inicio
         Set-ItemProperty `
             "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
             "ControlVolumenBK" "`"$exe`" `"$ahk`""
 
-        Write-BKLog "Control de volumen BK instalado correctamente"
+        Write-BKLog "Control de volumen BK instalado"
         return $true
-
-    } catch {
+    }
+    catch {
         Write-BKLog "Error instalando Control de volumen BK: $_" "ERROR"
         return $false
     }
 }
 
 function Uninstall-BKVolumeControl {
-
     try {
-        # 1. Matar procesos AutoHotkey asociados
         Get-Process AutoHotkey -ErrorAction SilentlyContinue | Stop-Process -Force
+        Remove-Item (Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume") -Recurse -Force -ErrorAction SilentlyContinue
 
-        # 2. Eliminar carpeta
-        $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
-        Remove-Item $targetDir -Recurse -Force -ErrorAction SilentlyContinue
-
-        # 3. Quitar inicio automático
         Remove-ItemProperty `
             "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
             "ControlVolumenBK" -ErrorAction SilentlyContinue
 
-        Write-BKLog "Control de volumen BK desinstalado completamente"
+        Write-BKLog "Control de volumen BK desinstalado"
         return $true
-
-    } catch {
+    }
+    catch {
         Write-BKLog "Error desinstalando Control de volumen BK: $_" "ERROR"
-        return $false
-    }
-}
-
-
-# ==================================================
-# RADIAL APPS BK (RAINMETER)
-# ==================================================
-
-function Get-BKRainmeterExe {
-
-    if (Test-Path "C:\Program Files\Rainmeter\Rainmeter.exe") {
-        return "C:\Program Files\Rainmeter\Rainmeter.exe"
-    }
-
-    if (Test-Path "C:\Program Files (x86)\Rainmeter\Rainmeter.exe") {
-        return "C:\Program Files (x86)\Rainmeter\Rainmeter.exe"
-    }
-
-    return $null
-}
-
-function Install-BKRadialApps {
-
-    try {
-        Write-Host "Instalando Radial Apps BK..."
-
-        # ---- 1. Rainmeter ----
-        $rainmeterExe = Get-BKRainmeterExe
-
-        if (-not $rainmeterExe) {
-
-            Write-Host "Instalando Rainmeter..."
-            $tmp = Join-Path $env:TEMP "RainmeterInstaller.exe"
-
-            if (-not (Invoke-BKDownload "https://www.rainmeter.net/releases/Rainmeter-4.5.18.exe" $tmp)) {
-                Write-BKLog "No se pudo descargar Rainmeter" "ERROR"
-                return $false
-            }
-
-            Start-Process $tmp "/S" -Wait
-            Start-Sleep -Seconds 2
-            Remove-Item $tmp -ErrorAction SilentlyContinue
-
-            $rainmeterExe = Get-BKRainmeterExe
-            if (-not $rainmeterExe) {
-                Write-BKLog "Rainmeter no se instaló correctamente" "ERROR"
-                return $false
-            }
-        }
-
-        # ---- 2. Descargar RMSKIN ----
-        $radialDir = Join-Path $env:TEMP "BK-Radial"
-        $rmskin    = Join-Path $radialDir "BlackConsoleRadial_1.0.rmskin"
-
-        if (-not (Test-Path $radialDir)) {
-            New-Item -ItemType Directory -Path $radialDir | Out-Null
-        }
-
-        if (-not (Test-Path $rmskin)) {
-            Write-Host "Descargando Radial Apps BK..."
-            if (-not (Invoke-BKDownload `
-                "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin" `
-                $rmskin)) {
-                Write-BKLog "No se pudo descargar la skin radial" "ERROR"
-                return $false
-            }
-        }
-
-        # ---- 3. Lanzar instalador ----
-        Write-Host "Abriendo instalador de la skin..."
-        Start-Process $rmskin
-
-        Write-BKLog "Radial Apps BK instalado correctamente"
-        return $true
-
-    } catch {
-        Write-BKLog "Error instalando Radial Apps BK: $_" "ERROR"
-        return $false
-    }
-}
-
-function Uninstall-BKRadialApps {
-
-    try {
-        $skinPath = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
-
-        if (Test-Path $skinPath) {
-            Remove-Item $skinPath -Recurse -Force
-        }
-
-        $rainmeterExe = Get-BKRainmeterExe
-        if ($rainmeterExe) {
-            & $rainmeterExe "!RefreshApp"
-        }
-
-        Write-BKLog "Radial Apps BK desinstalado completamente"
-        return $true
-
-    } catch {
-        Write-BKLog "Error desinstalando Radial Apps BK: $_" "ERROR"
         return $false
     }
 }
