@@ -26,7 +26,6 @@ if (-not (Test-IsAdministrator)) {
 # CONFIGURACION
 # -------------------------------
 
-$ErrorActionPreference = "Stop"
 
 Write-Host ">>> BOOTSTRAP BK-LAUNCHER (ESTABLE) <<<" -ForegroundColor Cyan
 Write-Host ""
