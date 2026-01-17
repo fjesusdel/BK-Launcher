@@ -1,73 +1,77 @@
 # ==================================================
 # BK-LAUNCHER - BOOTSTRAP
 # ==================================================
-# Responsabilidad:
-# - Comprobar permisos de administrador
-# - Relanzar el launcher con elevacion si es necesario
-# - Establecer una ruta de ejecucion estable
-# - NO contiene logica de menus ni aplicaciones
+# Descarga y lanza BK-Launcher correctamente
+# Compatible con irm | iex
 # ==================================================
 
+$ErrorActionPreference = "Stop"
+
+Write-Host "Iniciando BK-Launcher..." -ForegroundColor Cyan
+
 # -------------------------------
-# COMPROBAR PERMISOS DE ADMINISTRADOR
+# RUTAS
 # -------------------------------
 
-function Test-IsAdministrator {
-    try {
-        $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
-        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
-    catch {
-        return $false
-    }
+$BKRoot = Join-Path $env:LOCALAPPDATA "BlackConsole"
+$LauncherFile = Join-Path $BKRoot "launcher.ps1"
+
+# -------------------------------
+# CREAR DIRECTORIO
+# -------------------------------
+
+if (-not (Test-Path $BKRoot)) {
+    New-Item -ItemType Directory -Path $BKRoot | Out-Null
 }
 
 # -------------------------------
-# RUTA BASE DE EJECUCION
+# URL DEL LAUNCHER
 # -------------------------------
 
-$Global:BKRoot = Join-Path $env:LOCALAPPDATA "BlackConsole"
+$LauncherUrl = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/launcher.ps1"
 
 # -------------------------------
-# RELANZAR COMO ADMINISTRADOR SI ES NECESARIO
+# DESCARGAR LAUNCHER
 # -------------------------------
 
-if (-not (Test-IsAdministrator)) {
+Write-Host "Descargando launcher..." -ForegroundColor Yellow
 
-    Write-Host "BK-Launcher necesita ejecutarse con permisos de administrador."
-    Write-Host "Reiniciando con privilegios elevados..."
-    Write-Host ""
-
-    $launcherPath = Join-Path $PSScriptRoot "launcher.ps1"
-
-    if (-not (Test-Path $launcherPath)) {
-        Write-Host "ERROR: No se encontro launcher.ps1." -ForegroundColor Red
-        Pause
-        exit 1
-    }
-
-    Start-Process powershell `
-        -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$launcherPath`"" `
-        -Verb RunAs
-
-    exit
+try {
+    Invoke-RestMethod -Uri $LauncherUrl -OutFile $LauncherFile
 }
-
-# -------------------------------
-# EJECUCION NORMAL (YA EN ADMIN)
-# -------------------------------
-
-Clear-Host
-Write-Host "BK-Launcher iniciado con permisos de administrador."
-Write-Host ""
-
-$launcherPath = Join-Path $PSScriptRoot "launcher.ps1"
-
-if (-not (Test-Path $launcherPath)) {
-    Write-Host "ERROR: No se encontro launcher.ps1." -ForegroundColor Red
-    Pause
+catch {
+    Write-Host "ERROR: No se pudo descargar launcher.ps1" -ForegroundColor Red
     exit 1
 }
 
-& $launcherPath
+if (-not (Test-Path $LauncherFile)) {
+    Write-Host "ERROR: launcher.ps1 no existe tras la descarga" -ForegroundColor Red
+    exit 1
+}
+
+# -------------------------------
+# COMPROBAR ADMIN
+# -------------------------------
+
+function Test-IsAdministrator {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $p  = New-Object Security.Principal.WindowsPrincipal($id)
+    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+if (-not (Test-IsAdministrator)) {
+    Write-Host "Reiniciando con privilegios de administrador..." -ForegroundColor Yellow
+
+    Start-Process powershell `
+        -ArgumentList "-ExecutionPolicy Bypass -File `"$LauncherFile`"" `
+        -Verb RunAs
+
+    return
+}
+
+# -------------------------------
+# EJECUTAR LAUNCHER
+# -------------------------------
+
+Write-Host "BK-Launcher iniciado con permisos de administrador." -ForegroundColor Green
+& $LauncherFile
