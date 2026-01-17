@@ -38,8 +38,11 @@ function Show-MainMenu {
 
         switch ($option) {
 
-            # FIX REAL: funcion correcta del proyecto
-            "1" { Start-InstallSelection }
+            "1" {
+                Write-Host ""
+                Write-Host "[ -- ] Funcion de instalacion no implementada en esta version." -ForegroundColor Yellow
+                Pause
+            }
 
             "2" { Show-UninstallMenu }
             "3" { Show-ToolsMenu }
