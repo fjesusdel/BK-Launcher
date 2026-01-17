@@ -1,6 +1,11 @@
 # ==================================================
-# BK-LAUNCHER - ACTIONS (FIXED)
+# BK-LAUNCHER - ACTIONS (FIXED - SAFE)
 # ==================================================
+
+# IMPORTANTE:
+# - NO se elimina ninguna funcion
+# - NO se cambia la estructura
+# - Solo se corrigen cierres prematuros y control de procesos
 
 # -------------------------------
 # UTILIDADES
@@ -38,7 +43,15 @@ function Start-BKInstaller {
     }
 
     Write-Host "Ejecutando instalador..."
-    Start-Process $FilePath $Arguments -Wait
+
+    # 🔧 FIX CRÍTICO:
+    # Usamos -PassThru para mantener referencia al proceso
+    $proc = Start-Process $FilePath $Arguments -PassThru
+
+    # 🔧 FIX CRÍTICO:
+    # Esperamos EXPLICITAMENTE a que termine el instalador
+    Wait-Process -Id $proc.Id
+
     Write-Host "Instalador finalizado."
 }
 
@@ -67,37 +80,55 @@ function Install-BKApplicationsWithProgress {
         switch ($id) {
 
             "battlenet" {
-                if (Invoke-BKDownload "https://www.battle.net/download/getInstallerForGame?os=win&gameProgram=BATTLENET_APP&version=Live" $tmp) {
+                if (Invoke-BKDownload `
+                    "https://www.battle.net/download/getInstallerForGame?os=win&gameProgram=BATTLENET_APP&version=Live" `
+                    $tmp) {
+
                     Start-BKInstaller $tmp
                 }
             }
 
             "chrome" {
-                if (Invoke-BKDownload "https://www.google.com/chrome/?standalone=1&platform=win64" $tmp) {
+                if (Invoke-BKDownload `
+                    "https://www.google.com/chrome/?standalone=1&platform=win64" `
+                    $tmp) {
+
                     Start-BKInstaller $tmp "/silent /install"
                 }
             }
 
             "discord" {
-                if (Invoke-BKDownload "https://discord.com/api/download?platform=win" $tmp) {
+                if (Invoke-BKDownload `
+                    "https://discord.com/api/download?platform=win" `
+                    $tmp) {
+
                     Start-BKInstaller $tmp "/S"
                 }
             }
 
             "steam" {
-                if (Invoke-BKDownload "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe" $tmp) {
+                if (Invoke-BKDownload `
+                    "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe" `
+                    $tmp) {
+
                     Start-BKInstaller $tmp "/S"
                 }
             }
 
             "firefox" {
-                if (Invoke-BKDownload "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=es-ES" $tmp) {
+                if (Invoke-BKDownload `
+                    "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=es-ES" `
+                    $tmp) {
+
                     Start-BKInstaller $tmp "-ms"
                 }
             }
 
             "7zip" {
-                if (Invoke-BKDownload "https://www.7-zip.org/a/7z2301-x64.exe" $tmp) {
+                if (Invoke-BKDownload `
+                    "https://www.7-zip.org/a/7z2301-x64.exe" `
+                    $tmp) {
+
                     Start-BKInstaller $tmp "/S"
                 }
             }
@@ -107,7 +138,15 @@ function Install-BKApplicationsWithProgress {
             }
         }
 
-        Remove-Item $tmp -ErrorAction SilentlyContinue
+        # 🔧 FIX SEGURO:
+        # Eliminar el instalador SOLO cuando ya ha terminado
+        if (Test-Path $tmp) {
+            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        }
+
+        Write-Host ""
+        Write-Host "Instalacion terminada para $($app.Name)."
+        Pause
     }
 }
 
