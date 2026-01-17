@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - BOOTSTRAP FINAL CORRECTO
+# BK-LAUNCHER - BOOTSTRAP ESTABLE (ARQUITECTURA REAL)
 # ==================================================
 
 function Test-IsAdministrator {
@@ -19,27 +19,25 @@ if (-not (Test-IsAdministrator)) {
     return
 }
 
-try {
+$ErrorActionPreference = "Stop"
 
+try {
     Write-Host ">>> BOOTSTRAP BK-LAUNCHER <<<" -ForegroundColor Cyan
     Write-Host ""
 
     $Base = Join-Path $env:LOCALAPPDATA "BlackConsole"
-    $Src  = Join-Path $Base "src"
-
-    New-Item -ItemType Directory -Path $Base -Force | Out-Null
 
     # -------------------------------
-    # LIMPIAR SRC
+    # LIMPIAR INSTALACION ANTERIOR
     # -------------------------------
 
-    if (Test-Path $Src) {
-        Remove-Item $Src -Recurse -Force
+    if (Test-Path $Base) {
+        Remove-Item $Base -Recurse -Force
     }
-    New-Item -ItemType Directory -Path $Src | Out-Null
+    New-Item -ItemType Directory -Path $Base | Out-Null
 
     # -------------------------------
-    # DESCARGA REPO
+    # DESCARGAR REPO
     # -------------------------------
 
     $zipUrl = "https://github.com/fjesusdel/BK-Launcher/archive/refs/heads/main.zip"
@@ -49,19 +47,19 @@ try {
     Invoke-WebRequest $zipUrl -OutFile $tmpZip -UseBasicParsing
 
     Write-Host "Extrayendo..."
-    Expand-Archive $tmpZip $Src -Force
+    Expand-Archive $tmpZip $Base -Force
     Remove-Item $tmpZip -Force
 
     # Aplanar carpeta
-    $inner = Get-ChildItem $Src | Where-Object { $_.PSIsContainer } | Select-Object -First 1
-    Get-ChildItem $inner.FullName | Move-Item -Destination $Src -Force
+    $inner = Get-ChildItem $Base | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+    Get-ChildItem $inner.FullName | Move-Item -Destination $Base -Force
     Remove-Item $inner.FullName -Recurse -Force
 
     # -------------------------------
     # LANZAR LAUNCHER
     # -------------------------------
 
-    $launcher = Join-Path $Src "launcher.ps1"
+    $launcher = Join-Path $Base "launcher.ps1"
 
     if (-not (Test-Path $launcher)) {
         Write-Host "ERROR: launcher.ps1 no encontrado" -ForegroundColor Red
@@ -78,14 +76,11 @@ try {
         -NoExit `
         -ExecutionPolicy Bypass `
         -File "$launcher" `
-        -WorkingDirectory $Src
+        -WorkingDirectory $Base
 }
 catch {
     Write-Host ""
     Write-Host "ERROR CRITICO EN BOOTSTRAP" -ForegroundColor Red
     Write-Host $_
-}
-finally {
-    Write-Host ""
-    Write-Host "Bootstrap finalizado."
+    Pause
 }
