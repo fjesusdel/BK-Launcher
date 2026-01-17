@@ -1,15 +1,15 @@
 # ==================================================
-# BK-LAUNCHER - BOOTSTRAP
+# BK-LAUNCHER - BOOTSTRAP (FINAL)
 # ==================================================
-# - Descarga limpia del runtime en cada ejecucion
-# - Mantiene tools y data persistentes
-# - Evita codigo zombie
-# - No modifica ExecutionPolicy del sistema
+# - Runtime limpio en cada ejecucion
+# - Tools y data persistentes
+# - NO usa iex para lanzar launcher
+# - Bypass seguro de ExecutionPolicy
 # ==================================================
 
 $ErrorActionPreference = "Stop"
 
-Write-Host ">>> BOOTSTRAP NUEVO CON RUNTIME / TOOLS / DATA <<<" -ForegroundColor Cyan
+Write-Host ">>> BOOTSTRAP NUEVO (runtime / tools / data) <<<" -ForegroundColor Cyan
 Write-Host ""
 
 # -------------------------------
@@ -51,7 +51,7 @@ New-Item -ItemType Directory -Path $BCRuntime -Force | Out-Null
 $repoZipUrl = "https://github.com/fjesusdel/BK-Launcher/archive/refs/heads/main.zip"
 $tmpZip     = Join-Path $env:TEMP "bk-launcher-runtime.zip"
 
-Write-Host "Descargando BK-Launcher desde GitHub..."
+Write-Host "Descargando BK-Launcher..."
 Invoke-WebRequest $repoZipUrl -OutFile $tmpZip -UseBasicParsing
 
 # -------------------------------
@@ -62,13 +62,12 @@ Write-Host "Extrayendo runtime..."
 Expand-Archive $tmpZip $BCRuntime -Force
 Remove-Item $tmpZip -Force
 
-# El ZIP crea una carpeta interna (BK-Launcher-main)
 $inner = Get-ChildItem $BCRuntime | Where-Object { $_.PSIsContainer } | Select-Object -First 1
 Get-ChildItem $inner.FullName | Move-Item -Destination $BCRuntime -Force
 Remove-Item $inner.FullName -Recurse -Force
 
 # -------------------------------
-# LANZAR LAUNCHER (BYPASS POLICY)
+# LANZAR LAUNCHER (AQUÍ ESTÁ LA CLAVE)
 # -------------------------------
 
 $launcher = Join-Path $BCRuntime "launcher.ps1"
@@ -79,10 +78,10 @@ if (-not (Test-Path $launcher)) {
 }
 
 Write-Host ""
-Write-Host "Lanzando Black Console desde runtime..."
-Write-Host "(ExecutionPolicy Bypass solo para este proceso)"
+Write-Host "Lanzando Black Console en nuevo proceso (ExecutionPolicy Bypass)..."
 Write-Host ""
 
-Start-Process powershell.exe `
-    -ArgumentList "-ExecutionPolicy Bypass -File `"$launcher`"" `
+Start-Process -FilePath "powershell.exe" `
+    -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$launcher`"" `
+    -WorkingDirectory $BCRuntime `
     -Wait
