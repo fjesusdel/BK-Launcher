@@ -46,26 +46,15 @@ if (-not (Test-Path $configFile)) {
 . $configFile
 
 # -------------------------------
-# CARGAR CORE (ORDEN IMPORTA)
+# CARGAR TODOS LOS MODULOS CORE
 # -------------------------------
 
-$coreModules = @(
-    "ui.ps1",
-    "logs.ps1",
-    "detect.ps1",
-    "actions.ps1",
-    "selection.ps1",
-    "menu.ps1"
-)
-
-foreach ($module in $coreModules) {
-    $path = Join-Path $Global:BKCorePath $module
-    if (-not (Test-Path $path)) {
-        Write-Host "ERROR: Falta modulo core $module" -ForegroundColor Red
-        exit 1
+Get-ChildItem -Path $Global:BKCorePath -Filter *.ps1 -Recurse |
+    Sort-Object FullName |
+    ForEach-Object {
+        . $_.FullName
     }
-    . $path
-}
+
 
 # -------------------------------
 # CARGAR REGISTRY DE APPS
