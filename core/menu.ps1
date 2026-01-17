@@ -38,7 +38,7 @@ function Show-MainMenu {
 }
 
 # ==================================================
-# ESTADO DEL SISTEMA (IMPLEMENTADO)
+# ESTADO DEL SISTEMA (WOW MODE)
 # ==================================================
 
 function Show-SystemStatus {
@@ -50,51 +50,103 @@ function Show-SystemStatus {
     Write-Host "--------------------------------"
     Write-Host ""
 
-    # Usuario / permisos
-    $identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    $isAdmin   = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    # -------------------------------
+    # ADMINISTRADOR
+    # -------------------------------
+    $isAdmin = ([Security.Principal.WindowsPrincipal] `
+        [Security.Principal.WindowsIdentity]::GetCurrent()
+    ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-    Write-Host "Usuario actual : $($identity.Name)"
-    Write-Host "Administrador  : $($isAdmin)"
+    $adminText  = if ($isAdmin) { "SI" } else { "NO" }
+    $adminColor = if ($isAdmin) { "Green" } else { "Red" }
+
+    Write-Host "Administrador : " -NoNewline
+    Write-Host $adminText -ForegroundColor $adminColor
     Write-Host ""
 
-    # Sistema operativo
-    $os = Get-CimInstance Win32_OperatingSystem
-    Write-Host "Sistema operativo : $($os.Caption)"
-    Write-Host "Arquitectura      : $($os.OSArchitecture)"
+    # -------------------------------
+    # SISTEMA
+    # -------------------------------
+    $os = (Get-CimInstance Win32_OperatingSystem).Caption
+    Write-Host "Sistema       : $os"
     Write-Host ""
 
-    # Memoria RAM
-    $ramGB = [Math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
-    Write-Host "RAM total : $ramGB GB"
+    # -------------------------------
+    # APLICACIONES BK
+    # -------------------------------
+    Write-Host "APLICACIONES BLACK CONSOLE"
+    Write-Host "--------------------------------"
+
+    $bkApps = @(
+        @{ Name = "Control de volumen BK"; Path = "$env:LOCALAPPDATA\BlackConsole\tools\volume\volume.ahk" }
+        @{ Name = "Radial Apps BK"; Path = "$env:USERPROFILE\Documents\Rainmeter\Skins\RadialLauncher" }
+    )
+
+    foreach ($app in $bkApps) {
+        if (Test-Path $app.Path) {
+            Write-Host ("{0,-25} : INSTALADA" -f $app.Name) -ForegroundColor Green
+        } else {
+            Write-Host ("{0,-25} : NO INSTALADA" -f $app.Name) -ForegroundColor DarkGray
+        }
+    }
+
     Write-Host ""
 
-    # Disco sistema
-    $systemDrive = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-    $freeGB = [Math]::Round($systemDrive.FreeSpace / 1GB, 2)
-    $totalGB = [Math]::Round($systemDrive.Size / 1GB, 2)
-
-    Write-Host "Disco sistema (C:)"
-    Write-Host " - Libre : $freeGB GB"
-    Write-Host " - Total : $totalGB GB"
+    # -------------------------------
+    # RED - TEST DE VELOCIDAD
+    # -------------------------------
+    Write-Host "RED"
+    Write-Host "--------------------------------"
+    Write-Host "Probando velocidad de conexion..."
     Write-Host ""
 
-    # Rutas Black Console
-    Write-Host "Black Console"
-    Write-Host " - Runtime : $($Global:BKRoot)\runtime"
-    Write-Host " - Tools   : $($Global:BKRoot)\tools"
-    Write-Host " - Data    : $($Global:BKRoot)\data"
-    Write-Host ""
+    try {
+        # DESCARGA
+        $downloadUrl = "https://speed.hetzner.de/100MB.bin"
+        $tmpFile = Join-Path $env:TEMP "bk_speedtest.bin"
 
-    # Estado herramientas BK
-    $volumeInstalled = Test-Path "$env:LOCALAPPDATA\BlackConsole\tools\volume"
-    $radialInstalled = Test-Path "$env:USERPROFILE\Documents\Rainmeter\Skins\RadialLauncher"
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        Invoke-WebRequest $downloadUrl -OutFile $tmpFile -UseBasicParsing
+        $sw.Stop()
 
-    Write-Host "Herramientas BK"
-    Write-Host " - Control de volumen : $($volumeInstalled)"
-    Write-Host " - Radial Apps BK    : $($radialInstalled)"
-    Write-Host ""
+        Remove-Item $tmpFile -Force
+
+        $downloadMbps = [Math]::Round((100 * 8) / $sw.Elapsed.TotalSeconds, 2)
+
+        # SUBIDA (SIMULADA)
+        $uploadData = "X" * 5MB
+        $sw.Restart()
+        Invoke-WebRequest "https://httpbin.org/post" -Method Post -Body $uploadData -UseBasicParsing | Out-Null
+        $sw.Stop()
+
+        $uploadMbps = [Math]::Round((5 * 8) / $sw.Elapsed.TotalSeconds, 2)
+
+        # COLORES
+        function SpeedColor($speed) {
+            if ($speed -gt 500) { "Green" }
+            elseif ($speed -gt 100) { "Yellow" }
+            else { "Red" }
+        }
+
+        Write-Host "Descarga : $downloadMbps Mbps" -ForegroundColor (SpeedColor $downloadMbps)
+        Write-Host "Subida   : $uploadMbps Mbps"   -ForegroundColor (SpeedColor $uploadMbps)
+
+        if ($downloadMbps -gt 500) {
+            Write-Host ""
+            Write-Host "Estado   : CONEXION EXCELENTE" -ForegroundColor Green
+        }
+        elseif ($downloadMbps -gt 100) {
+            Write-Host ""
+            Write-Host "Estado   : CONEXION BUENA" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host ""
+            Write-Host "Estado   : CONEXION LENTA" -ForegroundColor Red
+        }
+
+    } catch {
+        Write-Host "No se pudo realizar el test de red." -ForegroundColor Red
+    }
 
     Pause
 }
