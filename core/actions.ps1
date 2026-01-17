@@ -141,7 +141,7 @@ function Install-BKVolumeControl {
     try {
         $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
         $exe = Join-Path $targetDir "AutoHotkey.exe"
-        $ahk = Join-Path $targetDir "volumen.ahk"
+        $ahk = Join-Path $targetDir "volume.ahk"
 
         $baseUrl = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
 
@@ -156,7 +156,7 @@ function Install-BKVolumeControl {
 
         # 3. Descargar script
         Invoke-WebRequest `
-            "$baseUrl/volumen.ahk" `
+            "$baseUrl/volume.ahk" `
             -OutFile $ahk `
             -UseBasicParsing
 
