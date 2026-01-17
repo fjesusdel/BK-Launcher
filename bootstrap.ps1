@@ -1,15 +1,9 @@
 # ==================================================
-# BK-LAUNCHER - BOOTSTRAP FINAL
-# ==================================================
-# - Auto-elevacion a administrador
-# - Runtime limpio en cada ejecucion
-# - Tools y data persistentes
-# - Ejecucion segura con ExecutionPolicy Bypass
-# - Sin procesos colgados
+# BK-LAUNCHER - BOOTSTRAP FINAL DEFINITIVO
 # ==================================================
 
 # -------------------------------
-# ELEVAR PRIVILEGIOS (AUTO-ADMIN)
+# AUTO-ELEVACION
 # -------------------------------
 
 function Test-IsAdministrator {
@@ -21,93 +15,69 @@ function Test-IsAdministrator {
 if (-not (Test-IsAdministrator)) {
     Write-Host "Reiniciando BK-Launcher como administrador..." -ForegroundColor Yellow
 
-    $psArgs = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/bootstrap.ps1?nocache=$(Get-Random) | iex`""
+    Start-Process powershell.exe `
+        -Verb RunAs `
+        -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/bootstrap.ps1?nocache=$(Get-Random) | iex`""
 
-    Start-Process powershell.exe -Verb RunAs -ArgumentList $psArgs
     exit
 }
 
 # -------------------------------
-# CONFIGURACION GENERAL
+# CONFIGURACION
 # -------------------------------
 
 $ErrorActionPreference = "Stop"
 
-Write-Host ">>> BOOTSTRAP BK-LAUNCHER (runtime / tools / data) <<<" -ForegroundColor Cyan
+Write-Host ">>> BOOTSTRAP BK-LAUNCHER (ESTABLE) <<<" -ForegroundColor Cyan
 Write-Host ""
 
 # -------------------------------
-# RUTAS BASE
+# RUTAS
 # -------------------------------
 
-$BCBase    = Join-Path $env:LOCALAPPDATA "BlackConsole"
-$BCRuntime = Join-Path $BCBase "runtime"
-$BCTools   = Join-Path $BCBase "tools"
-$BCData    = Join-Path $BCBase "data"
+$Base    = Join-Path $env:LOCALAPPDATA "BlackConsole"
+$Runtime = Join-Path $Base "runtime"
+$Tools   = Join-Path $Base "tools"
+$Data    = Join-Path $Base "data"
 
-Write-Host "Base    : $BCBase"
-Write-Host "Runtime : $BCRuntime"
-Write-Host "Tools   : $BCTools"
-Write-Host "Data    : $BCData"
-Write-Host ""
+New-Item -ItemType Directory -Path $Base,$Runtime,$Tools,$Data -Force | Out-Null
 
 # -------------------------------
-# CREAR ESTRUCTURA BASE
+# LIMPIAR RUNTIME
 # -------------------------------
 
-New-Item -ItemType Directory -Path $BCBase,$BCTools,$BCData -Force | Out-Null
+Write-Host "Limpiando runtime..."
+Remove-Item $Runtime -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $Runtime -Force | Out-Null
 
 # -------------------------------
-# LIMPIAR SOLO RUNTIME
+# DESCARGA
 # -------------------------------
 
-if (Test-Path $BCRuntime) {
-    Write-Host "Limpiando runtime anterior..."
-    Remove-Item $BCRuntime -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-New-Item -ItemType Directory -Path $BCRuntime -Force | Out-Null
-
-# -------------------------------
-# DESCARGAR REPOSITORIO
-# -------------------------------
-
-$repoZipUrl = "https://github.com/fjesusdel/BK-Launcher/archive/refs/heads/main.zip"
-$tmpZip     = Join-Path $env:TEMP "bk-launcher-runtime.zip"
+$zipUrl = "https://github.com/fjesusdel/BK-Launcher/archive/refs/heads/main.zip"
+$tmpZip = Join-Path $env:TEMP "bk-launcher.zip"
 
 Write-Host "Descargando BK-Launcher..."
-Invoke-WebRequest $repoZipUrl -OutFile $tmpZip -UseBasicParsing
-
-# -------------------------------
-# EXTRAER A RUNTIME
-# -------------------------------
+Invoke-WebRequest $zipUrl -OutFile $tmpZip -UseBasicParsing
 
 Write-Host "Extrayendo runtime..."
-Expand-Archive $tmpZip $BCRuntime -Force
+Expand-Archive $tmpZip $Runtime -Force
 Remove-Item $tmpZip -Force
 
-$inner = Get-ChildItem $BCRuntime | Where-Object { $_.PSIsContainer } | Select-Object -First 1
-Get-ChildItem $inner.FullName | Move-Item -Destination $BCRuntime -Force
+$inner = Get-ChildItem $Runtime | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+Get-ChildItem $inner.FullName | Move-Item -Destination $Runtime -Force
 Remove-Item $inner.FullName -Recurse -Force
 
 # -------------------------------
-# LANZAR LAUNCHER
+# LANZAR LAUNCHER (NOEXIT)
 # -------------------------------
 
-$launcher = Join-Path $BCRuntime "launcher.ps1"
-
-if (-not (Test-Path $launcher)) {
-    Write-Host "ERROR: launcher.ps1 no encontrado en runtime." -ForegroundColor Red
-    Pause
-    exit 1
-}
+$launcher = Join-Path $Runtime "launcher.ps1"
 
 Write-Host ""
 Write-Host "Lanzando Black Console..."
 Write-Host ""
 
 Start-Process powershell.exe `
-    -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$launcher`"" `
-    -WorkingDirectory $BCRuntime
-
-exit
+    -ArgumentList "-NoProfile -NoExit -ExecutionPolicy Bypass -File `"$launcher`"" `
+    -WorkingDirectory $Runtime
