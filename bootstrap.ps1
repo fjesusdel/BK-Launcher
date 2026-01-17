@@ -1,5 +1,10 @@
 # ==================================================
-# BK-LAUNCHER - BOOTSTRAP FINAL DEFINITIVO
+# BK-LAUNCHER - BOOTSTRAP ESTABLE DEFINITIVO
+# ==================================================
+# - NO usa runtime
+# - NO ejecuta código desde AppData
+# - Ejecuta SIEMPRE el launcher del repo descargado
+# - AppData solo para datos (logs / tools / data)
 # ==================================================
 
 # -------------------------------
@@ -8,7 +13,7 @@
 
 function Test-IsAdministrator {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
+    $principal   = New-Object Security.Principal.WindowsPrincipal($currentUser)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
@@ -28,56 +33,74 @@ if (-not (Test-IsAdministrator)) {
 
 $ErrorActionPreference = "Stop"
 
-Write-Host ">>> BOOTSTRAP BK-LAUNCHER (ESTABLE) <<<" -ForegroundColor Cyan
+Write-Host ">>> BOOTSTRAP BK-LAUNCHER (REPO DIRECTO) <<<" -ForegroundColor Cyan
 Write-Host ""
 
 # -------------------------------
 # RUTAS
 # -------------------------------
 
-$Base    = Join-Path $env:LOCALAPPDATA "BlackConsole"
-$Runtime = Join-Path $Base "runtime"
-$Tools   = Join-Path $Base "tools"
-$Data    = Join-Path $Base "data"
+# Repo temporal descargado
+$RepoBase = Join-Path $env:TEMP "BK-Launcher-Repo"
 
-New-Item -ItemType Directory -Path $Base,$Runtime,$Tools,$Data -Force | Out-Null
+# Datos persistentes
+$BCBase  = Join-Path $env:LOCALAPPDATA "BlackConsole"
+$Logs    = Join-Path $BCBase "logs"
+$Tools   = Join-Path $BCBase "tools"
+$Data    = Join-Path $BCBase "data"
 
-# -------------------------------
-# LIMPIAR RUNTIME
-# -------------------------------
-
-Write-Host "Limpiando runtime..."
-Remove-Item $Runtime -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path $Runtime -Force | Out-Null
+# Crear carpetas de datos (NO código)
+New-Item -ItemType Directory -Path $BCBase,$Logs,$Tools,$Data -Force | Out-Null
 
 # -------------------------------
-# DESCARGA
+# LIMPIAR REPO TEMPORAL
+# -------------------------------
+
+if (Test-Path $RepoBase) {
+    Write-Host "Limpiando repo temporal anterior..."
+    Remove-Item $RepoBase -Recurse -Force
+}
+
+New-Item -ItemType Directory -Path $RepoBase | Out-Null
+
+# -------------------------------
+# DESCARGAR REPO
 # -------------------------------
 
 $zipUrl = "https://github.com/fjesusdel/BK-Launcher/archive/refs/heads/main.zip"
 $tmpZip = Join-Path $env:TEMP "bk-launcher.zip"
 
-Write-Host "Descargando BK-Launcher..."
+Write-Host "Descargando BK-Launcher desde GitHub..."
 Invoke-WebRequest $zipUrl -OutFile $tmpZip -UseBasicParsing
 
-Write-Host "Extrayendo runtime..."
-Expand-Archive $tmpZip $Runtime -Force
+Write-Host "Extrayendo repositorio..."
+Expand-Archive $tmpZip $RepoBase -Force
 Remove-Item $tmpZip -Force
 
-$inner = Get-ChildItem $Runtime | Where-Object { $_.PSIsContainer } | Select-Object -First 1
-Get-ChildItem $inner.FullName | Move-Item -Destination $Runtime -Force
-Remove-Item $inner.FullName -Recurse -Force
+# Ajustar estructura (quitar carpeta interna)
+$inner = Get-ChildItem $RepoBase | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+$RepoRoot = $inner.FullName
 
 # -------------------------------
-# LANZAR LAUNCHER (NOEXIT)
+# VALIDAR LAUNCHER
 # -------------------------------
 
-$launcher = Join-Path $Runtime "launcher.ps1"
+$launcher = Join-Path $RepoRoot "launcher.ps1"
+
+if (-not (Test-Path $launcher)) {
+    Write-Host "ERROR: launcher.ps1 no encontrado en el repositorio." -ForegroundColor Red
+    exit 1
+}
+
+# -------------------------------
+# LANZAR BLACK CONSOLE
+# -------------------------------
 
 Write-Host ""
-Write-Host "Lanzando Black Console..."
+Write-Host "Lanzando Black Console desde el REPO (modo estable)..."
 Write-Host ""
 
 Start-Process powershell.exe `
-    -ArgumentList "-NoProfile -NoExit -ExecutionPolicy Bypass -File `"$launcher`"" `
-    -WorkingDirectory $Runtime
+    -NoNewWindow `
+    -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$launcher`"" `
+    -WorkingDirectory $RepoRoot
