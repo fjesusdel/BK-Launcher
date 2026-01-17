@@ -1,99 +1,65 @@
 # ==================================================
 # BK-LAUNCHER - BOOTSTRAP
 # ==================================================
-# Descarga el proyecto completo y lanza launcher.ps1
-# Compatible con irm | iex
+# Descarga limpia del runtime
+# Mantiene tools y data persistentes
 # ==================================================
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Iniciando BK-Launcher..." -ForegroundColor Cyan
-
 # -------------------------------
-# RUTAS
+# RUTAS BASE
 # -------------------------------
 
-$BKRoot = Join-Path $env:LOCALAPPDATA "BlackConsole"
-$RepoBase = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main"
+$BCBase    = Join-Path $env:LOCALAPPDATA "BlackConsole"
+$BCRuntime = Join-Path $BCBase "runtime"
+$BCTools   = Join-Path $BCBase "tools"
+$BCData    = Join-Path $BCBase "data"
 
 # -------------------------------
-# ADMIN
+# CREAR ESTRUCTURA BASE
 # -------------------------------
 
-function Test-IsAdministrator {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+New-Item -ItemType Directory -Path $BCBase,$BCTools,$BCData -Force | Out-Null
+
+# -------------------------------
+# LIMPIAR SOLO RUNTIME
+# -------------------------------
+
+if (Test-Path $BCRuntime) {
+    Write-Host "Limpiando runtime anterior..."
+    Remove-Item $BCRuntime -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-if (-not (Test-IsAdministrator)) {
-    Write-Host "Reiniciando con privilegios de administrador..." -ForegroundColor Yellow
-    Start-Process powershell `
-        -ArgumentList "-ExecutionPolicy Bypass -NoExit -Command `"irm $RepoBase/bootstrap.ps1 | iex`"" `
-        -Verb RunAs
-    return
-}
-
-Write-Host "BK-Launcher iniciado con permisos de administrador." -ForegroundColor Green
+New-Item -ItemType Directory -Path $BCRuntime | Out-Null
 
 # -------------------------------
-# CREAR ESTRUCTURA
+# DESCARGAR REPOSITORIO
 # -------------------------------
 
-$folders = @(
-    "config",
-    "core",
-    "apps",
-    "tools"
-)
+$repoZip = "https://github.com/fjesusdel/BK-Launcher/archive/refs/heads/main.zip"
+$tmpZip  = Join-Path $env:TEMP "bk-launcher-runtime.zip"
 
-foreach ($f in $folders) {
-    $path = Join-Path $BKRoot $f
-    if (-not (Test-Path $path)) {
-        New-Item -ItemType Directory -Path $path | Out-Null
-    }
-}
+Write-Host "Descargando BK-Launcher..."
+Invoke-WebRequest $repoZip -OutFile $tmpZip -UseBasicParsing
 
 # -------------------------------
-# ARCHIVOS A DESCARGAR
+# EXTRAER A RUNTIME
 # -------------------------------
 
-$files = @{
-    "launcher.ps1"              = "$BKRoot\launcher.ps1"
+Expand-Archive $tmpZip $BCRuntime -Force
+Remove-Item $tmpZip -Force
 
-    "config/settings.ps1"       = "$BKRoot\config\settings.ps1"
-
-    "core/ui.ps1"               = "$BKRoot\core\ui.ps1"
-    "core/menu.ps1"             = "$BKRoot\core\menu.ps1"
-    "core/actions.ps1"          = "$BKRoot\core\actions.ps1"
-    "core/detect.ps1"           = "$BKRoot\core\detect.ps1"
-    "core/selection.ps1"        = "$BKRoot\core\selection.ps1"
-    "core/logs.ps1"             = "$BKRoot\core\logs.ps1"
-
-    "apps/registry.ps1"         = "$BKRoot\apps\registry.ps1"
-}
+# Ajustar carpeta interna del ZIP
+$inner = Get-ChildItem $BCRuntime | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+Get-ChildItem $inner.FullName | Move-Item -Destination $BCRuntime -Force
+Remove-Item $inner.FullName -Recurse -Force
 
 # -------------------------------
-# DESCARGA
+# LANZAR LAUNCHER
 # -------------------------------
 
-Write-Host "Descargando archivos del launcher..." -ForegroundColor Yellow
+$launcher = Join-Path $BCRuntime "launcher.ps1"
 
-foreach ($rel in $files.Keys) {
-    $url  = "$RepoBase/$rel"
-    $dest = $files[$rel]
-
-    try {
-        Invoke-RestMethod -Uri $url -OutFile $dest
-    } catch {
-        Write-Host "ERROR descargando $rel" -ForegroundColor Red
-        exit 1
-    }
-}
-
-# -------------------------------
-# EJECUTAR LAUNCHER
-# -------------------------------
-
-Write-Host "Lanzando Black Console..." -ForegroundColor Cyan
-& "$BKRoot\launcher.ps1"
+Write-Host "Lanzando Black Console..."
+& $launcher
