@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - BOOTSTRAP FINAL DEFINITIV0
+# BK-LAUNCHER - BOOTSTRAP FINAL DEFINITIVO
 # ==================================================
 
 # -------------------------------
