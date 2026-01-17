@@ -35,12 +35,17 @@ Write-Host ""
 # RUTAS
 # -------------------------------
 
-$Base    = Join-Path $env:LOCALAPPDATA "BlackConsole"
-$Runtime = Join-Path $Base "runtime"
-$Tools   = Join-Path $Base "tools"
-$Data    = Join-Path $Base "data"
+$Base = Join-Path $env:LOCALAPPDATA "BlackConsole"
 
-New-Item -ItemType Directory -Path $Base,$Runtime,$Tools,$Data -Force | Out-Null
+if (Test-Path $Base) {
+    Remove-Item $Base -Recurse -Force
+}
+
+git clone https://github.com/fjesusdel/BK-Launcher.git $Base
+
+Start-Process powershell.exe `
+    -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$Base\launcher.ps1`"" `
+    -WorkingDirectory $Base
 
 # -------------------------------
 # LIMPIAR RUNTIME
