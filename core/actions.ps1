@@ -30,6 +30,109 @@ function Invoke-BKDownload {
 }
 
 # ==================================================
+# INSTALACION SOFTWARE TERCEROS
+# ==================================================
+
+function Install-BKApplicationsWithProgress {
+    param ([string[]]$Ids)
+
+    foreach ($id in $Ids) {
+
+        $app = Get-BKApplicationById $id
+        if (-not $app) { continue }
+
+        Clear-Host
+        Show-BlackConsoleBanner
+
+        Write-Host "INSTALANDO SOFTWARE"
+        Write-Host "--------------------------------"
+        Write-Host "Aplicacion : $($app.Name)"
+        Write-Host ""
+
+        $tmp = Join-Path $env:TEMP "$id-installer.exe"
+
+        switch ($id) {
+
+            "chrome" {
+                if (Invoke-BKDownload "https://www.google.com/chrome/?standalone=1&platform=win64" $tmp) {
+                    Start-Process $tmp "/silent /install" -Wait
+                }
+            }
+
+            "discord" {
+                if (Invoke-BKDownload "https://discord.com/api/download?platform=win" $tmp) {
+                    Start-Process $tmp "/S" -Wait
+                }
+            }
+
+            "steam" {
+                if (Invoke-BKDownload "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe" $tmp) {
+                    Start-Process $tmp "/S" -Wait
+                }
+            }
+
+            "firefox" {
+                if (Invoke-BKDownload "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=es-ES" $tmp) {
+                    Start-Process $tmp "-ms" -Wait
+                }
+            }
+
+            "7zip" {
+                if (Invoke-BKDownload "https://www.7-zip.org/a/7z2301-x64.exe" $tmp) {
+                    Start-Process $tmp "/S" -Wait
+                }
+            }
+        }
+
+        Remove-Item $tmp -ErrorAction SilentlyContinue
+    }
+}
+
+# ==================================================
+# DESINSTALACION SOFTWARE
+# ==================================================
+
+function Uninstall-BKApplicationsWithProgress {
+    param ([string[]]$Ids)
+
+    foreach ($id in $Ids) {
+
+        $app = Get-BKApplicationById $id
+        if (-not $app) { continue }
+
+        Clear-Host
+        Show-BlackConsoleBanner
+
+        Write-Host "DESINSTALANDO SOFTWARE"
+        Write-Host "--------------------------------"
+        Write-Host "Aplicacion : $($app.Name)"
+        Write-Host ""
+
+        if ($app.Type -eq "windows") {
+            Get-AppxPackage |
+                Where-Object { $_.Name -like "*$($app.Id)*" } |
+                Remove-AppxPackage -ErrorAction SilentlyContinue
+            continue
+        }
+
+        $keys = @(
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+        )
+
+        foreach ($key in $keys) {
+            Get-ItemProperty $key -ErrorAction SilentlyContinue | ForEach-Object {
+                if ($_.DisplayName -and $_.DisplayName -like "*$($app.Name)*") {
+                    if ($_.UninstallString) {
+                        Start-Process "cmd.exe" "/c $($_.UninstallString) /quiet" -Wait
+                    }
+                }
+            }
+        }
+    }
+}
+
+# ==================================================
 # CONTROL DE VOLUMEN BK
 # ==================================================
 
@@ -52,6 +155,7 @@ function Install-BKVolumeControl {
             "ControlVolumenBK" "`"$exe`" `"$ahk`""
 
         return $true
+
     } catch {
         return $false
     }
@@ -76,12 +180,12 @@ function Uninstall-BKVolumeControl {
 
 function Get-BKRainmeterExe {
 
-    if (Test-Path "$env:ProgramFiles\Rainmeter\Rainmeter.exe") {
-        return "$env:ProgramFiles\Rainmeter\Rainmeter.exe"
+    if (Test-Path "C:\Program Files\Rainmeter\Rainmeter.exe") {
+        return "C:\Program Files\Rainmeter\Rainmeter.exe"
     }
 
-    if (Test-Path "$env:ProgramFiles(x86)\Rainmeter\Rainmeter.exe") {
-        return "$env:ProgramFiles(x86)\Rainmeter\Rainmeter.exe"
+    if (Test-Path "C:\Program Files (x86)\Rainmeter\Rainmeter.exe") {
+        return "C:\Program Files (x86)\Rainmeter\Rainmeter.exe"
     }
 
     return $null
@@ -90,57 +194,59 @@ function Get-BKRainmeterExe {
 function Install-BKRadialApps {
 
     try {
-        # 1. Detectar Rainmeter
+        Write-Host "Instalando Radial Apps BK..."
+
+        # ---- 1. Rainmeter ----
         $rainmeterExe = Get-BKRainmeterExe
 
         if (-not $rainmeterExe) {
+
             Write-Host "Instalando Rainmeter..."
-
             $tmp = Join-Path $env:TEMP "RainmeterInstaller.exe"
-            $url = "https://www.rainmeter.net/releases/Rainmeter-4.5.18.exe"
 
-            if (-not (Invoke-BKDownload $url $tmp)) {
+            if (-not (Invoke-BKDownload "https://www.rainmeter.net/releases/Rainmeter-4.5.18.exe" $tmp)) {
                 Write-BKLog "No se pudo descargar Rainmeter" "ERROR"
                 return $false
             }
 
             Start-Process $tmp "/S" -Wait
             Start-Sleep -Seconds 2
-            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+            Remove-Item $tmp -ErrorAction SilentlyContinue
 
             $rainmeterExe = Get-BKRainmeterExe
             if (-not $rainmeterExe) {
-                Write-BKLog "Rainmeter no se instalo correctamente" "ERROR"
+                Write-BKLog "Rainmeter no se instaló correctamente" "ERROR"
                 return $false
             }
         }
 
-        # 2. Lanzar Rainmeter si no esta corriendo
-        if (-not (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
-            Start-Process $rainmeterExe
-            Start-Sleep -Seconds 2
-        }
+        # ---- 2. Descargar RMSKIN ----
+        $radialDir = Join-Path $env:TEMP "BK-Radial"
+        $rmskin    = Join-Path $radialDir "BlackConsoleRadial_1.0.rmskin"
 
-        # 3. Instalar la skin
-        $rmskin = Join-Path $PSScriptRoot "..\tools\radial\BlackConsoleRadial_1.0.rmskin"
+        if (-not (Test-Path $radialDir)) {
+            New-Item -ItemType Directory -Path $radialDir | Out-Null
+        }
 
         if (-not (Test-Path $rmskin)) {
-            Write-BKLog "RMSKIN no encontrado" "ERROR"
-            return $false
+            Write-Host "Descargando Radial Apps BK..."
+            if (-not (Invoke-BKDownload `
+                "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin" `
+                $rmskin)) {
+                Write-BKLog "No se pudo descargar la skin radial" "ERROR"
+                return $false
+            }
         }
 
+        # ---- 3. Lanzar instalador ----
+        Write-Host "Abriendo instalador de la skin..."
         Start-Process $rmskin
-        Start-Sleep -Seconds 3
 
-        # 4. Activar skin correctamente (ESTA ERA LA CLAVE)
-        & $rainmeterExe `
-            !ActivateConfig "RadialLauncher" "Radial.ini"
-
-        Write-BKLog "Radial Apps BK instalado y activo correctamente"
+        Write-BKLog "Radial Apps BK instalado correctamente"
         return $true
 
     } catch {
-        Write-BKLog "Error instalando Radial Apps BK" "ERROR"
+        Write-BKLog "Error instalando Radial Apps BK: $_" "ERROR"
         return $false
     }
 }
