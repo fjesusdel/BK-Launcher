@@ -249,18 +249,24 @@ function Install-BKRadialApps {
 
         if (-not (Test-Path $tmpSkin)) {
             Write-Host "ERROR: No se pudo descargar la skin." -ForegroundColor Red
-            return $false
+            Pause
+            return
         }
 
-        Write-Host "Lanzando instalador de Rainmeter..."
-        Start-Process -FilePath $tmpSkin
+        Write-Host ""
+        Write-Host "Abriendo instalador de Rainmeter..."
+        Write-Host "Complete la instalación y cierre el instalador."
+        Write-Host ""
 
-        Write-BKLog "Radial Apps BK instalado correctamente"
-        return $true
+        Start-Process -FilePath $tmpSkin -Wait
+
+        Write-Host ""
+        Write-Host "Instalación finalizada."
+        Pause
 
     } catch {
-        Write-BKLog "Error instalando Radial Apps BK: $_" "ERROR"
-        return $false
+        Write-Host "Error instalando Radial Apps BK" -ForegroundColor Red
+        Pause
     }
 }
 
