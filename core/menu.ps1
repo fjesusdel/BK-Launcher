@@ -84,7 +84,11 @@ function Show-ToolsMenu {
                 Write-Host "Instalando Control de volumen BK..."
                 $ok = Install-BKVolumeControl
                 Write-Host ""
-                Write-Host ($ok ? "Instalado correctamente." : "Error en la instalacion.")
+                if ($ok) {
+                    Write-Host "Instalado correctamente."
+                } else {
+                    Write-Host "Error en la instalacion."
+                }
                 Pause
             }
 
@@ -94,13 +98,18 @@ function Show-ToolsMenu {
                 Write-Host "Desinstalando Control de volumen BK..."
                 $ok = Uninstall-BKVolumeControl
                 Write-Host ""
-                Write-Host ($ok ? "Desinstalado correctamente." : "Error en la desinstalacion.")
+                if ($ok) {
+                    Write-Host "Desinstalado correctamente."
+                } else {
+                    Write-Host "Error en la desinstalacion."
+                }
                 Pause
             }
 
             "3" {
                 Clear-Host
                 Show-BlackConsoleBanner
+                Write-Host "Instalando Radial Apps BK..."
                 $ok = Install-BKRadialApps
                 Pause
             }
@@ -108,6 +117,7 @@ function Show-ToolsMenu {
             "4" {
                 Clear-Host
                 Show-BlackConsoleBanner
+                Write-Host "Desinstalando Radial Apps BK..."
                 $ok = Uninstall-BKRadialApps
                 Pause
             }
