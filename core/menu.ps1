@@ -38,7 +38,7 @@ function Show-MainMenu {
 }
 
 # ==================================================
-# ESTADO DEL SISTEMA (WOW MODE)
+# ESTADO DEL SISTEMA
 # ==================================================
 
 function Show-SystemStatus {
@@ -53,101 +53,103 @@ function Show-SystemStatus {
     # -------------------------------
     # ADMINISTRADOR
     # -------------------------------
+
     $isAdmin = ([Security.Principal.WindowsPrincipal] `
         [Security.Principal.WindowsIdentity]::GetCurrent()
     ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-    $adminText  = if ($isAdmin) { "SI" } else { "NO" }
-    $adminColor = if ($isAdmin) { "Green" } else { "Red" }
-
-    Write-Host "Administrador : " -NoNewline
-    Write-Host $adminText -ForegroundColor $adminColor
-    Write-Host ""
+    Write-Host -NoNewline "Administrador : "
+    if ($isAdmin) {
+        Write-Host "SI" -ForegroundColor Green
+    } else {
+        Write-Host "NO" -ForegroundColor Red
+    }
 
     # -------------------------------
     # SISTEMA
     # -------------------------------
+
     $os = (Get-CimInstance Win32_OperatingSystem).Caption
-    Write-Host "Sistema       : $os"
     Write-Host ""
+    Write-Host "Sistema       : $os"
 
     # -------------------------------
-    # APLICACIONES BK
+    # APPS BLACK CONSOLE
     # -------------------------------
+
+    Write-Host ""
     Write-Host "APLICACIONES BLACK CONSOLE"
     Write-Host "--------------------------------"
 
-    $bkApps = @(
-        @{ Name = "Control de volumen BK"; Path = "$env:LOCALAPPDATA\BlackConsole\tools\volume\volume.ahk" }
-        @{ Name = "Radial Apps BK"; Path = "$env:USERPROFILE\Documents\Rainmeter\Skins\RadialLauncher" }
-    )
+    $volPath = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
+    $radPath = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
 
-    foreach ($app in $bkApps) {
-        if (Test-Path $app.Path) {
-            Write-Host ("{0,-25} : INSTALADA" -f $app.Name) -ForegroundColor Green
-        } else {
-            Write-Host ("{0,-25} : NO INSTALADA" -f $app.Name) -ForegroundColor DarkGray
-        }
+    Write-Host -NoNewline "Control de volumen BK : "
+    if (Test-Path $volPath) {
+        Write-Host "INSTALADA" -ForegroundColor Green
+    } else {
+        Write-Host "NO INSTALADA" -ForegroundColor DarkGray
     }
 
-    Write-Host ""
+    Write-Host -NoNewline "Radial Apps BK       : "
+    if (Test-Path $radPath) {
+        Write-Host "INSTALADA" -ForegroundColor Green
+    } else {
+        Write-Host "NO INSTALADA" -ForegroundColor DarkGray
+    }
 
     # -------------------------------
-    # RED - TEST DE VELOCIDAD
+    # RED (BITS)
     # -------------------------------
+
+    Write-Host ""
     Write-Host "RED"
     Write-Host "--------------------------------"
-    Write-Host "Probando velocidad de conexion..."
     Write-Host ""
 
     try {
-        # DESCARGA
-        $downloadUrl = "https://speed.hetzner.de/100MB.bin"
-        $tmpFile = Join-Path $env:TEMP "bk_speedtest.bin"
+        Write-Host "Probando conectividad..."
 
-        $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        Invoke-WebRequest $downloadUrl -OutFile $tmpFile -UseBasicParsing
-        $sw.Stop()
-
-        Remove-Item $tmpFile -Force
-
-        $downloadMbps = [Math]::Round((100 * 8) / $sw.Elapsed.TotalSeconds, 2)
-
-        # SUBIDA (SIMULADA)
-        $uploadData = "X" * 5MB
-        $sw.Restart()
-        Invoke-WebRequest "https://httpbin.org/post" -Method Post -Body $uploadData -UseBasicParsing | Out-Null
-        $sw.Stop()
-
-        $uploadMbps = [Math]::Round((5 * 8) / $sw.Elapsed.TotalSeconds, 2)
-
-        # COLORES
-        function SpeedColor($speed) {
-            if ($speed -gt 500) { "Green" }
-            elseif ($speed -gt 100) { "Yellow" }
-            else { "Red" }
+        # Ping
+        $ping = Test-Connection -ComputerName 1.1.1.1 -Count 2 -Quiet
+        if (-not $ping) {
+            throw "Sin conectividad IP"
         }
 
-        Write-Host "Descarga : $downloadMbps Mbps" -ForegroundColor (SpeedColor $downloadMbps)
-        Write-Host "Subida   : $uploadMbps Mbps"   -ForegroundColor (SpeedColor $uploadMbps)
+        $lat = (Test-Connection 1.1.1.1 -Count 2 |
+            Measure-Object -Property ResponseTime -Average).Average
 
-        if ($downloadMbps -gt 500) {
-            Write-Host ""
-            Write-Host "Estado   : CONEXION EXCELENTE" -ForegroundColor Green
+        Write-Host "Latencia media       : $([math]::Round($lat,1)) ms" -ForegroundColor Cyan
+
+        # Test BITS
+        Write-Host ""
+        Write-Host "Probando velocidad de descarga..."
+
+        $url  = "https://speed.hetzner.de/10MB.bin"
+        $dest = Join-Path $env:TEMP "bk_speedtest.bin"
+
+        if (Test-Path $dest) {
+            Remove-Item $dest -Force
         }
-        elseif ($downloadMbps -gt 100) {
-            Write-Host ""
-            Write-Host "Estado   : CONEXION BUENA" -ForegroundColor Yellow
-        }
-        else {
-            Write-Host ""
-            Write-Host "Estado   : CONEXION LENTA" -ForegroundColor Red
-        }
+
+        $start = Get-Date
+        Start-BitsTransfer -Source $url -Destination $dest -ErrorAction Stop
+        $end = Get-Date
+
+        $sizeMB = 10
+        $seconds = ($end - $start).TotalSeconds
+        $mbps = [math]::Round((($sizeMB * 8) / $seconds), 2)
+
+        Write-Host "Velocidad descarga   : $mbps Mbps" -ForegroundColor Green
+
+        Remove-Item $dest -Force -ErrorAction SilentlyContinue
 
     } catch {
         Write-Host "No se pudo realizar el test de red." -ForegroundColor Red
+        Write-Host "Posible firewall, proxy o red restringida." -ForegroundColor DarkGray
     }
 
+    Write-Host ""
     Pause
 }
 
