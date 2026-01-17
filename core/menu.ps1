@@ -37,13 +37,17 @@ function Show-MainMenu {
         $option = Read-Host "Seleccione una opcion"
 
         switch ($option) {
-            "1" { Show-InstallMenu }
+
+            # FIX REAL: funcion correcta del proyecto
+            "1" { Start-InstallSelection }
+
             "2" { Show-UninstallMenu }
             "3" { Show-ToolsMenu }
             "4" { Show-SystemStatus }
             "5" { Show-LogsMenu }
             "6" { Show-About }
             "0" { break }
+
             default { Pause }
         }
 
