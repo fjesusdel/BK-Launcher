@@ -1,3 +1,22 @@
+# -------------------------------
+# ELEVAR PRIVILEGIOS (AUTO-ADMIN)
+# -------------------------------
+
+function Test-IsAdministrator {
+    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+if (-not (Test-IsAdministrator)) {
+    Write-Host "Reiniciando BK-Launcher como administrador..." -ForegroundColor Yellow
+
+    $psArgs = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/bootstrap.ps1?nocache=$(Get-Random) | iex`""
+
+    Start-Process powershell.exe -Verb RunAs -ArgumentList $psArgs
+    exit
+}
+
 # ==================================================
 # BK-LAUNCHER - BOOTSTRAP (FINAL)
 # ==================================================
