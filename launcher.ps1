@@ -1,11 +1,8 @@
 # ==================================================
 # BK-LAUNCHER - MAIN LAUNCHER
 # ==================================================
-# Responsabilidad:
-# - Inicializar el entorno
-# - Cargar configuracion y modulos
-# - Mostrar banner
-# - Entrar al menu principal
+# Punto de entrada del sistema
+# Carga configuracion, core y lanza el menu
 # ==================================================
 
 # -------------------------------
@@ -17,8 +14,7 @@ function Test-IsAdministrator {
         $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
         $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
         return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
-    catch {
+    } catch {
         return $false
     }
 }
@@ -30,102 +26,66 @@ if (-not (Test-IsAdministrator)) {
 }
 
 # -------------------------------
-# DEFINIR RUTAS GLOBALES
+# DEFINIR RUTAS
 # -------------------------------
 
 $Global:BKRoot       = Join-Path $env:LOCALAPPDATA "BlackConsole"
 $Global:BKConfigPath = Join-Path $PSScriptRoot "config"
 $Global:BKCorePath   = Join-Path $PSScriptRoot "core"
 $Global:BKAppsPath   = Join-Path $PSScriptRoot "apps"
-$Global:BKToolsPath  = Join-Path $PSScriptRoot "tools"
 
 # -------------------------------
 # CARGAR CONFIGURACION
 # -------------------------------
 
 $configFile = Join-Path $Global:BKConfigPath "settings.ps1"
-
 if (-not (Test-Path $configFile)) {
-    Write-Host "ERROR: No se encontro config/settings.ps1" -ForegroundColor Red
+    Write-Host "ERROR: Falta config/settings.ps1" -ForegroundColor Red
     exit 1
 }
-
 . $configFile
 
 # -------------------------------
-# CARGAR MODULOS CORE
+# CARGAR CORE (ORDEN IMPORTA)
 # -------------------------------
 
 $coreModules = @(
     "ui.ps1",
-    "menu.ps1",
-    "logs.ps1"
+    "logs.ps1",
+    "detect.ps1",
+    "actions.ps1",
+    "selection.ps1",
+    "menu.ps1"
 )
 
 foreach ($module in $coreModules) {
-    $modulePath = Join-Path $Global:BKCorePath $module
-    if (-not (Test-Path $modulePath)) {
-        Write-Host "ERROR: Falta el modulo core $module" -ForegroundColor Red
+    $path = Join-Path $Global:BKCorePath $module
+    if (-not (Test-Path $path)) {
+        Write-Host "ERROR: Falta modulo core $module" -ForegroundColor Red
         exit 1
     }
-    . $modulePath
+    . $path
 }
 
 # -------------------------------
-# INICIALIZAR LOGS (PLACEHOLDER)
+# CARGAR REGISTRY DE APPS
 # -------------------------------
 
-if (Get-Command Initialize-BKLogs -ErrorAction SilentlyContinue) {
-    Initialize-BKLogs
+$registryFile = Join-Path $Global:BKAppsPath "registry.ps1"
+if (-not (Test-Path $registryFile)) {
+    Write-Host "ERROR: Falta apps/registry.ps1" -ForegroundColor Red
+    exit 1
 }
+. $registryFile
 
 # -------------------------------
-# MOSTRAR BANNER
+# INICIALIZAR LOGS
 # -------------------------------
 
-if (Get-Command Show-BlackConsoleBanner -ErrorAction SilentlyContinue) {
-    Show-BlackConsoleBanner
-}
+Initialize-BKLogs
 
 # -------------------------------
-# MENU PRINCIPAL (PLACEHOLDER)
+# LANZAR MENU PRINCIPAL
 # -------------------------------
-
-function Show-MainMenu {
-
-    do {
-        Write-Host "MENU PRINCIPAL"
-        Write-Host "--------------------------------"
-        Write-Host ""
-        Write-Host "1) Instalar software"
-        Write-Host "2) Desinstalar software"
-        Write-Host "3) Herramientas Black Console"
-        Write-Host "4) Estado del sistema"
-        Write-Host "5) Acerca de"
-        Write-Host ""
-        Write-Host "0) Salir"
-        Write-Host ""
-
-        $option = Read-Host "Seleccione una opcion"
-
-        switch ($option) {
-            "0" {
-                Write-Host "Saliendo de BK-Launcher..."
-                break
-            }
-            default {
-                Write-Host ""
-                Write-Host "Opcion no implementada aun."
-                Write-Host ""
-                Pause
-                Clear-Host
-                if (Get-Command Show-BlackConsoleBanner -ErrorAction SilentlyContinue) {
-                    Show-BlackConsoleBanner
-                }
-            }
-        }
-
-    } while ($true)
-}
 
 Show-MainMenu
