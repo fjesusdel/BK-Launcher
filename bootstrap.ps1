@@ -1,3 +1,6 @@
+Write-Host ">>> BOOTSTRAP NUEVO CON RUNTIME <<<" -ForegroundColor Cyan
+Pause
+
 # ==================================================
 # BK-LAUNCHER - BOOTSTRAP
 # ==================================================
