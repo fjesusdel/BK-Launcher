@@ -1,3 +1,13 @@
+# ==================================================
+# BK-LAUNCHER - BOOTSTRAP FINAL
+# ==================================================
+# - Auto-elevacion a administrador
+# - Runtime limpio en cada ejecucion
+# - Tools y data persistentes
+# - Ejecucion segura con ExecutionPolicy Bypass
+# - Sin procesos colgados
+# ==================================================
+
 # -------------------------------
 # ELEVAR PRIVILEGIOS (AUTO-ADMIN)
 # -------------------------------
@@ -17,18 +27,13 @@ if (-not (Test-IsAdministrator)) {
     exit
 }
 
-# ==================================================
-# BK-LAUNCHER - BOOTSTRAP (FINAL)
-# ==================================================
-# - Runtime limpio en cada ejecucion
-# - Tools y data persistentes
-# - NO usa iex para lanzar launcher
-# - Bypass seguro de ExecutionPolicy
-# ==================================================
+# -------------------------------
+# CONFIGURACION GENERAL
+# -------------------------------
 
 $ErrorActionPreference = "Stop"
 
-Write-Host ">>> BOOTSTRAP NUEVO (runtime / tools / data) <<<" -ForegroundColor Cyan
+Write-Host ">>> BOOTSTRAP BK-LAUNCHER (runtime / tools / data) <<<" -ForegroundColor Cyan
 Write-Host ""
 
 # -------------------------------
@@ -86,21 +91,23 @@ Get-ChildItem $inner.FullName | Move-Item -Destination $BCRuntime -Force
 Remove-Item $inner.FullName -Recurse -Force
 
 # -------------------------------
-# LANZAR LAUNCHER (AQUÍ ESTÁ LA CLAVE)
+# LANZAR LAUNCHER
 # -------------------------------
 
 $launcher = Join-Path $BCRuntime "launcher.ps1"
 
 if (-not (Test-Path $launcher)) {
     Write-Host "ERROR: launcher.ps1 no encontrado en runtime." -ForegroundColor Red
+    Pause
     exit 1
 }
 
 Write-Host ""
-Write-Host "Lanzando Black Console en nuevo proceso (ExecutionPolicy Bypass)..."
+Write-Host "Lanzando Black Console..."
 Write-Host ""
 
-Start-Process -FilePath "powershell.exe" `
-    -Verb RunAs `
+Start-Process powershell.exe `
     -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$launcher`"" `
     -WorkingDirectory $BCRuntime
+
+exit
