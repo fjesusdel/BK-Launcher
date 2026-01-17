@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - BOOTSTRAP FINAL ANTI-CIERRE
+# BK-LAUNCHER - BOOTSTRAP FINAL CORRECTO
 # ==================================================
 
 function Test-IsAdministrator {
@@ -13,18 +13,11 @@ function Test-IsAdministrator {
 # -------------------------------
 
 if (-not (Test-IsAdministrator)) {
-    Write-Host "Reiniciando BK-Launcher como administrador..." -ForegroundColor Yellow
-
     Start-Process powershell.exe `
         -Verb RunAs `
         -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/bootstrap.ps1 | iex`""
-
     return
 }
-
-# -------------------------------
-# EJECUCION SEGURA
-# -------------------------------
 
 try {
 
@@ -32,42 +25,67 @@ try {
     Write-Host ""
 
     $Base = Join-Path $env:LOCALAPPDATA "BlackConsole"
+    $Src  = Join-Path $Base "src"
 
-    if (-not (Test-Path $Base)) {
-        New-Item -ItemType Directory -Path $Base | Out-Null
+    New-Item -ItemType Directory -Path $Base -Force | Out-Null
+
+    # -------------------------------
+    # LIMPIAR SRC
+    # -------------------------------
+
+    if (Test-Path $Src) {
+        Remove-Item $Src -Recurse -Force
     }
+    New-Item -ItemType Directory -Path $Src | Out-Null
 
-    $Launcher = Join-Path $Base "launcher.ps1"
+    # -------------------------------
+    # DESCARGA REPO
+    # -------------------------------
 
-    if (-not (Test-Path $Launcher)) {
-        Write-Host "ERROR: launcher.ps1 no encontrado en:" -ForegroundColor Red
-        Write-Host $Base
-        Write-Host ""
-        Write-Host "¿Se ha descargado correctamente el repositorio?"
-        Write-Host ""
+    $zipUrl = "https://github.com/fjesusdel/BK-Launcher/archive/refs/heads/main.zip"
+    $tmpZip = Join-Path $env:TEMP "bk-launcher.zip"
+
+    Write-Host "Descargando BK-Launcher..."
+    Invoke-WebRequest $zipUrl -OutFile $tmpZip -UseBasicParsing
+
+    Write-Host "Extrayendo..."
+    Expand-Archive $tmpZip $Src -Force
+    Remove-Item $tmpZip -Force
+
+    # Aplanar carpeta
+    $inner = Get-ChildItem $Src | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+    Get-ChildItem $inner.FullName | Move-Item -Destination $Src -Force
+    Remove-Item $inner.FullName -Recurse -Force
+
+    # -------------------------------
+    # LANZAR LAUNCHER
+    # -------------------------------
+
+    $launcher = Join-Path $Src "launcher.ps1"
+
+    if (-not (Test-Path $launcher)) {
+        Write-Host "ERROR: launcher.ps1 no encontrado" -ForegroundColor Red
         Pause
         return
     }
 
+    Write-Host ""
     Write-Host "Lanzando Black Console..."
     Write-Host ""
 
-    # 🔑 CLAVE ABSOLUTA: MISMA CONSOLA + NOEXIT
     powershell.exe `
         -NoProfile `
         -NoExit `
         -ExecutionPolicy Bypass `
-        -File "$Launcher"
-
+        -File "$launcher" `
+        -WorkingDirectory $Src
 }
 catch {
     Write-Host ""
     Write-Host "ERROR CRITICO EN BOOTSTRAP" -ForegroundColor Red
     Write-Host $_
-    Write-Host ""
 }
 finally {
     Write-Host ""
-    Write-Host "Bootstrap finalizado. Pulse ENTER para cerrar."
-    Read-Host
+    Write-Host "Bootstrap finalizado."
 }
