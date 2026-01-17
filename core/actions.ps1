@@ -142,21 +142,40 @@ function Install-BKVolumeControl {
         $sourceDir = Join-Path $PSScriptRoot "..\tools\volume"
         $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
 
-        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-        Copy-Item "$sourceDir\*" $targetDir -Recurse -Force
-
         $exe = Join-Path $targetDir "AutoHotkey.exe"
         $ahk = Join-Path $targetDir "volumen.ahk"
 
+        # 1. Validar origen
+        if (-not (Test-Path $sourceDir)) {
+            Write-BKLog "Origen Control Volumen no encontrado" "ERROR"
+            return $false
+        }
+
+        # 2. Crear carpeta destino
+        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+
+        # 3. Copiar binarios SIEMPRE
+        Copy-Item "$sourceDir\*" $targetDir -Recurse -Force
+
+        # 4. Validar archivos críticos
+        if (-not (Test-Path $exe) -or -not (Test-Path $ahk)) {
+            Write-BKLog "AutoHotkey o volumen.ahk no encontrados tras copiar" "ERROR"
+            return $false
+        }
+
+        # 5. Lanzar proceso
         Start-Process $exe "`"$ahk`"" -WindowStyle Hidden
 
+        # 6. Registrar inicio
         Set-ItemProperty `
             "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
             "ControlVolumenBK" "`"$exe`" `"$ahk`""
 
+        Write-BKLog "Control de volumen BK instalado correctamente"
         return $true
 
     } catch {
+        Write-BKLog "Error instalando Control de volumen BK: $_" "ERROR"
         return $false
     }
 }
