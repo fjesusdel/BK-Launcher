@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - ACTIONS (FUNCIONAL REAL)
+# BK-LAUNCHER - ACTIONS (CORREGIDO)
 # ==================================================
 
 $ErrorActionPreference = "Stop"
@@ -19,7 +19,7 @@ function Download-And-Run {
         [string]$Args = ""
     )
 
-    $file = Join-Path $env:TEMP ([System.IO.Path]::GetFileName($Url))
+    $file = Join-Path $env:TEMP ([System.IO.Path]::GetRandomFileName() + ".exe")
 
     Write-Host "Descargando instalador..."
     Invoke-WebRequest $Url -OutFile $file -UseBasicParsing
@@ -29,7 +29,7 @@ function Download-And-Run {
 }
 
 # --------------------------------------------------
-# INSTALACIÓN DE SOFTWARE
+# INSTALACION DE SOFTWARE
 # --------------------------------------------------
 
 function Install-BKApplicationsWithProgress {
@@ -50,7 +50,9 @@ function Install-BKApplicationsWithProgress {
 
         switch ($id) {
 
-            "battle.net" {
+            # === IDS EXACTOS DEL REGISTRY ===
+
+            "battlenet" {
                 Download-And-Run `
                     "https://www.battle.net/download/getInstallerForGame?os=win&locale=esES&gameProgram=BATTLENET_APP"
             }
@@ -79,7 +81,7 @@ function Install-BKApplicationsWithProgress {
 }
 
 # --------------------------------------------------
-# DESINSTALACIÓN DE SOFTWARE
+# DESINSTALACION DE SOFTWARE
 # --------------------------------------------------
 
 function Uninstall-BKApplicationsWithProgress {
@@ -128,7 +130,7 @@ function Uninstall-BKApplicationsWithProgress {
 }
 
 # --------------------------------------------------
-# CONTROL DE VOLUMEN BK (RESTAURADO)
+# CONTROL DE VOLUMEN BK
 # --------------------------------------------------
 
 function Install-BKVolumeControl {
@@ -136,19 +138,15 @@ function Install-BKVolumeControl {
     $target = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
     New-Item -ItemType Directory -Path $target -Force | Out-Null
 
-    Write-Host "Descargando AutoHotkey..."
     Invoke-WebRequest `
         "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume/AutoHotkey.exe" `
         -OutFile "$target\AutoHotkey.exe" -UseBasicParsing
 
-    Write-Host "Descargando script de volumen..."
     Invoke-WebRequest `
         "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume/volume.ahk" `
         -OutFile "$target\volume.ahk" -UseBasicParsing
 
-    Write-Host "Lanzando Control de volumen BK..."
     Start-Process "$target\AutoHotkey.exe" "`"$target\volume.ahk`"" -WindowStyle Hidden
-
     Pause
 }
 
@@ -159,12 +157,10 @@ function Uninstall-BKVolumeControl {
 }
 
 # --------------------------------------------------
-# RADIAL APPS BK (RESTAURADO)
+# RADIAL APPS BK
 # --------------------------------------------------
 
 function Install-BKRadialApps {
-
-    Write-Host "Descargando Radial Apps BK..."
 
     $tmp = Join-Path $env:TEMP "BlackConsoleRadial.rmskin"
 
@@ -172,9 +168,7 @@ function Install-BKRadialApps {
         "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin" `
         -OutFile $tmp -UseBasicParsing
 
-    Write-Host "Abriendo instalador de Rainmeter..."
     Start-Process $tmp
-
     Pause
 }
 
@@ -182,6 +176,5 @@ function Uninstall-BKRadialApps {
 
     $path = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
     Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue
-
     Pause
 }
