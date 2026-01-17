@@ -2,7 +2,7 @@
 # BK-LAUNCHER - ACTIONS
 # ==================================================
 # Instalacion y desinstalacion de software
-# Con validacion REAL post-operacion
+# Con manejo correcto de UninstallString
 # ==================================================
 
 # -------------------------------
@@ -32,76 +32,35 @@ function Invoke-BKDownload {
 function Test-BKAppInstalled {
     param ([string]$Id)
 
-    $app = Get-BKApplicationById $Id
-    if (-not $app) { return $false }
-
     $status = Get-BKApplicationsStatus | Where-Object { $_.Id -eq $Id }
-    if (-not $status) { return $false }
-
-    return $status.Installed
+    return ($status -and $status.Installed)
 }
 
-# ==================================================
-# INSTALACION SOFTWARE
-# ==================================================
+function Split-UninstallCommand {
+    param ([string]$Command)
 
-function Install-BKApplicationsWithProgress {
-    param ([string[]]$Ids)
-
-    foreach ($id in $Ids) {
-
-        $app = Get-BKApplicationById $id
-        if (-not $app) { continue }
-
-        Clear-Host
-        Show-BlackConsoleBanner
-
-        Write-Host "INSTALANDO SOFTWARE"
-        Write-Host "--------------------------------"
-        Write-Host "Aplicacion : $($app.Name)"
-        Write-Host ""
-
-        $tmp = Join-Path $env:TEMP "$id-installer.exe"
-
-        switch ($id) {
-
-            "chrome" {
-                if (Invoke-BKDownload "https://www.google.com/chrome/?standalone=1&platform=win64" $tmp) {
-                    Start-Process $tmp "/silent /install" -Wait
-                }
-            }
-
-            "discord" {
-                if (Invoke-BKDownload "https://discord.com/api/download?platform=win" $tmp) {
-                    Start-Process $tmp "/S" -Wait
-                }
-            }
-
-            "steam" {
-                if (Invoke-BKDownload "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe" $tmp) {
-                    Start-Process $tmp "/S" -Wait
-                }
-            }
-
-            "firefox" {
-                if (Invoke-BKDownload "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=es-ES" $tmp) {
-                    Start-Process $tmp "-ms" -Wait
-                }
-            }
-
-            "7zip" {
-                if (Invoke-BKDownload "https://www.7-zip.org/a/7z2301-x64.exe" $tmp) {
-                    Start-Process $tmp "/S" -Wait
-                }
-            }
+    if ($Command -match '^"([^"]+)"\s*(.*)$') {
+        return @{
+            FilePath = $matches[1]
+            Arguments = $matches[2]
         }
+    }
 
-        Remove-Item $tmp -ErrorAction SilentlyContinue
+    if ($Command -match '^(\S+)\s+(.*)$') {
+        return @{
+            FilePath = $matches[1]
+            Arguments = $matches[2]
+        }
+    }
+
+    return @{
+        FilePath = $Command
+        Arguments = ""
     }
 }
 
 # ==================================================
-# DESINSTALACION SOFTWARE (REPARADA)
+# DESINSTALACION SOFTWARE (REPARADA DE VERDAD)
 # ==================================================
 
 function Uninstall-BKApplicationsWithProgress {
@@ -134,7 +93,6 @@ function Uninstall-BKApplicationsWithProgress {
             Start-Sleep -Seconds 2
             $uninstalled = -not (Test-BKAppInstalled $id)
         }
-
         else {
 
             $keys = @(
@@ -143,32 +101,29 @@ function Uninstall-BKApplicationsWithProgress {
             )
 
             foreach ($key in $keys) {
-
                 Get-ItemProperty $key -ErrorAction SilentlyContinue | ForEach-Object {
 
-                    if ($_.DisplayName -and $_.DisplayName -like "*$($app.Name)*") {
+                    if ($_.DisplayName -and $_.DisplayName -like "*$($app.Name)*" -and $_.UninstallString) {
 
-                        if (-not $_.UninstallString) { return }
-
-                        $cmd = $_.UninstallString.Trim()
+                        $parsed = Split-UninstallCommand $_.UninstallString
+                        $exe = $parsed.FilePath
+                        $args = $parsed.Arguments
 
                         Write-Host "Iniciando desinstalador..."
                         Write-Host ""
 
-                        # MSI
-                        if ($cmd -match "msiexec") {
+                        if ($exe -match "msiexec") {
 
-                            if ($cmd -notmatch "/x") {
-                                $cmd = $cmd -replace "/I", "/x"
+                            if ($args -notmatch "/x") {
+                                $args = $args -replace "/I", "/x"
                             }
 
-                            Start-Process "msiexec.exe" "$cmd /qn" -Wait
+                            Start-Process "msiexec.exe" "$args /qn" -Wait
                         }
                         else {
-                            # NO silencioso → interactivo
                             Write-Host "Esta aplicacion requiere desinstalacion manual."
                             Write-Host "Complete el proceso y cierre el instalador."
-                            Start-Process $cmd
+                            Start-Process -FilePath $exe -ArgumentList $args
                             Pause
                         }
                     }
@@ -194,55 +149,5 @@ function Uninstall-BKApplicationsWithProgress {
         }
 
         Pause
-    }
-}
-
-# ==================================================
-# CONTROL DE VOLUMEN BK
-# ==================================================
-
-function Install-BKVolumeControl {
-    try {
-        $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
-        $exe = Join-Path $targetDir "AutoHotkey.exe"
-        $ahk = Join-Path $targetDir "volume.ahk"
-
-        $baseUrl = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
-
-        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-
-        Invoke-WebRequest "$baseUrl/AutoHotkey.exe" -OutFile $exe -UseBasicParsing
-        Invoke-WebRequest "$baseUrl/volume.ahk" -OutFile $ahk -UseBasicParsing
-
-        Start-Process $exe "`"$ahk`"" -WindowStyle Hidden
-
-        Set-ItemProperty `
-            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
-            "ControlVolumenBK" "`"$exe`" `"$ahk`""
-
-        Write-BKLog "Control de volumen BK instalado"
-        return $true
-    }
-    catch {
-        Write-BKLog "Error instalando Control de volumen BK: $_" "ERROR"
-        return $false
-    }
-}
-
-function Uninstall-BKVolumeControl {
-    try {
-        Get-Process AutoHotkey -ErrorAction SilentlyContinue | Stop-Process -Force
-        Remove-Item (Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume") -Recurse -Force -ErrorAction SilentlyContinue
-
-        Remove-ItemProperty `
-            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
-            "ControlVolumenBK" -ErrorAction SilentlyContinue
-
-        Write-BKLog "Control de volumen BK desinstalado"
-        return $true
-    }
-    catch {
-        Write-BKLog "Error desinstalando Control de volumen BK: $_" "ERROR"
-        return $false
     }
 }
