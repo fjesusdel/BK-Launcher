@@ -139,27 +139,30 @@ function Uninstall-BKApplicationsWithProgress {
 function Install-BKVolumeControl {
 
     try {
-        $sourceDir = Join-Path $PSScriptRoot "..\tools\volume"
         $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
-
         $exe = Join-Path $targetDir "AutoHotkey.exe"
         $ahk = Join-Path $targetDir "volumen.ahk"
 
-        # 1. Validar origen
-        if (-not (Test-Path $sourceDir)) {
-            Write-BKLog "Origen Control Volumen no encontrado" "ERROR"
-            return $false
-        }
+        $baseUrl = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
 
-        # 2. Crear carpeta destino
+        # 1. Crear carpeta
         New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 
-        # 3. Copiar binarios SIEMPRE
-        Copy-Item "$sourceDir\*" $targetDir -Recurse -Force
+        # 2. Descargar AutoHotkey portable
+        Invoke-WebRequest `
+            "$baseUrl/AutoHotkey.exe" `
+            -OutFile $exe `
+            -UseBasicParsing
 
-        # 4. Validar archivos críticos
+        # 3. Descargar script
+        Invoke-WebRequest `
+            "$baseUrl/volumen.ahk" `
+            -OutFile $ahk `
+            -UseBasicParsing
+
+        # 4. Validar
         if (-not (Test-Path $exe) -or -not (Test-Path $ahk)) {
-            Write-BKLog "AutoHotkey o volumen.ahk no encontrados tras copiar" "ERROR"
+            Write-BKLog "Fallo descargando Control de Volumen BK" "ERROR"
             return $false
         }
 
