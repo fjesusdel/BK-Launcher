@@ -284,10 +284,23 @@ function Install-BKRadialApps {
 
 function Uninstall-BKRadialApps {
 
-    $skinPath = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
-    if (Test-Path $skinPath) {
-        Remove-Item $skinPath -Recurse -Force
-    }
+    try {
+        $skinPath = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
 
-    return $true
+        if (Test-Path $skinPath) {
+            Remove-Item $skinPath -Recurse -Force
+        }
+
+        $rainmeterExe = Get-BKRainmeterExe
+        if ($rainmeterExe) {
+            & $rainmeterExe "!RefreshApp"
+        }
+
+        Write-BKLog "Radial Apps BK desinstalado completamente"
+        return $true
+
+    } catch {
+        Write-BKLog "Error desinstalando Radial Apps BK: $_" "ERROR"
+        return $false
+    }
 }
