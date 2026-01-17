@@ -8,19 +8,17 @@ function Show-MainMenu {
         Clear-Host
         Show-BlackConsoleBanner
 
-        Write-Host "MENU PRINCIPAL" -ForegroundColor Cyan
-        Write-Host "--------------------------------" -ForegroundColor DarkGray
+        Write-Host "MENU PRINCIPAL"
+        Write-Host "--------------------------------"
         Write-Host ""
-
-        Write-Host "1) Instalar software" -ForegroundColor Green
-        Write-Host "2) Desinstalar software" -ForegroundColor Green
-        Write-Host "3) Herramientas Black Console" -ForegroundColor Green
-        Write-Host "4) Estado del sistema" -ForegroundColor Green
-        Write-Host "5) Ver logs" -ForegroundColor Green
-        Write-Host "6) Acerca de" -ForegroundColor Green
-
+        Write-Host "1) Instalar software"
+        Write-Host "2) Desinstalar software"
+        Write-Host "3) Herramientas Black Console"
+        Write-Host "4) Estado del sistema"
+        Write-Host "5) Ver logs"
+        Write-Host "6) Acerca de"
         Write-Host ""
-        Write-Host "0) Salir" -ForegroundColor Yellow
+        Write-Host "0) Salir"
         Write-Host ""
 
         $option = Read-Host "Seleccione una opcion"
@@ -49,17 +47,15 @@ function Show-ToolsMenu {
         Clear-Host
         Show-BlackConsoleBanner
 
-        Write-Host "HERRAMIENTAS BLACK CONSOLE" -ForegroundColor Cyan
-        Write-Host "--------------------------------" -ForegroundColor DarkGray
+        Write-Host "HERRAMIENTAS BLACK CONSOLE"
+        Write-Host "--------------------------------"
         Write-Host ""
-
-        Write-Host "1) Instalar Control de volumen BK" -ForegroundColor Green
-        Write-Host "2) Desinstalar Control de volumen BK" -ForegroundColor Green
-        Write-Host "3) Instalar Radial Apps BK" -ForegroundColor Green
-        Write-Host "4) Desinstalar Radial Apps BK" -ForegroundColor Green
-
+        Write-Host "1) Instalar Control de volumen BK"
+        Write-Host "2) Desinstalar Control de volumen BK"
+        Write-Host "3) Instalar Radial Apps BK"
+        Write-Host "4) Desinstalar Radial Apps BK"
         Write-Host ""
-        Write-Host "0) Volver" -ForegroundColor Yellow
+        Write-Host "0) Volver"
         Write-Host ""
 
         $option = Read-Host "Seleccione una opcion"
@@ -69,13 +65,14 @@ function Show-ToolsMenu {
             "1" {
                 Clear-Host
                 Show-BlackConsoleBanner
-                Write-Host "Instalando Control de volumen BK..." -ForegroundColor Cyan
+                Write-Host "Instalando Control de volumen BK..."
                 $ok = Install-BKVolumeControl
-                Write-Host ""
                 if ($ok) {
-                    Write-Host "Control de volumen BK instalado correctamente." -ForegroundColor Green
+                    Write-Host ""
+                    Write-Host "Control de volumen BK instalado correctamente."
                 } else {
-                    Write-Host "Error al instalar Control de volumen BK." -ForegroundColor Red
+                    Write-Host ""
+                    Write-Host "Error al instalar Control de volumen BK."
                 }
                 Pause
             }
@@ -83,13 +80,14 @@ function Show-ToolsMenu {
             "2" {
                 Clear-Host
                 Show-BlackConsoleBanner
-                Write-Host "Desinstalando Control de volumen BK..." -ForegroundColor Cyan
+                Write-Host "Desinstalando Control de volumen BK..."
                 $ok = Uninstall-BKVolumeControl
-                Write-Host ""
                 if ($ok) {
-                    Write-Host "Control de volumen BK desinstalado correctamente." -ForegroundColor Green
+                    Write-Host ""
+                    Write-Host "Control de volumen BK desinstalado correctamente."
                 } else {
-                    Write-Host "Error al desinstalar Control de volumen BK." -ForegroundColor Red
+                    Write-Host ""
+                    Write-Host "Error al desinstalar Control de volumen BK."
                 }
                 Pause
             }
@@ -97,24 +95,23 @@ function Show-ToolsMenu {
             "3" {
                 Clear-Host
                 Show-BlackConsoleBanner
-
-                Write-Host "RADIAL APPS BK" -ForegroundColor Cyan
-                Write-Host "--------------------------------" -ForegroundColor DarkGray
+                Write-Host "RADIAL APPS BK"
+                Write-Host "--------------------------------"
                 Write-Host ""
-                Write-Host "Menu radial flotante para acceso rapido." -ForegroundColor Gray
-                Write-Host "Requiere Rainmeter." -ForegroundColor Yellow
+                Write-Host "Menu radial flotante para acceso rapido."
+                Write-Host "Requiere Rainmeter."
                 Write-Host ""
-
                 $confirm = Read-Host "Desea instalarlo? [S/N]"
                 if ($confirm.Trim().ToUpper() -eq "S") {
                     Write-Host ""
-                    Write-Host "Instalando Radial Apps BK..." -ForegroundColor Cyan
+                    Write-Host "Instalando Radial Apps BK..."
                     $ok = Install-BKRadialApps
-                    Write-Host ""
                     if ($ok) {
-                        Write-Host "Radial Apps BK instalado correctamente." -ForegroundColor Green
+                        Write-Host ""
+                        Write-Host "Radial Apps BK instalado correctamente."
                     } else {
-                        Write-Host "Error al instalar Radial Apps BK." -ForegroundColor Red
+                        Write-Host ""
+                        Write-Host "Error al instalar Radial Apps BK."
                     }
                 }
                 Pause
@@ -123,13 +120,14 @@ function Show-ToolsMenu {
             "4" {
                 Clear-Host
                 Show-BlackConsoleBanner
-                Write-Host "Desinstalando Radial Apps BK..." -ForegroundColor Cyan
+                Write-Host "Desinstalando Radial Apps BK..."
                 $ok = Uninstall-BKRadialApps
-                Write-Host ""
                 if ($ok) {
-                    Write-Host "Radial Apps BK desinstalado correctamente." -ForegroundColor Green
+                    Write-Host ""
+                    Write-Host "Radial Apps BK desinstalado correctamente."
                 } else {
-                    Write-Host "Error al desinstalar Radial Apps BK." -ForegroundColor Red
+                    Write-Host ""
+                    Write-Host "Error al desinstalar Radial Apps BK."
                 }
                 Pause
             }
@@ -145,7 +143,7 @@ function Show-ToolsMenu {
 # ==================================================
 
 function Show-SystemStatus {
-    Write-Host "Estado del sistema." -ForegroundColor Gray
+    Write-Host "Estado del sistema."
     Pause
 }
 
@@ -156,7 +154,7 @@ function Show-LogsMenu {
 function Show-About {
     Clear-Host
     Show-BlackConsoleBanner
-    Write-Host "Autor   : $($Global:BKConfig.Author)" -ForegroundColor Gray
-    Write-Host "Version : $($Global:BKConfig.Version)" -ForegroundColor Gray
+    Write-Host "Autor   : $($Global:BKConfig.Author)"
+    Write-Host "Version : $($Global:BKConfig.Version)"
     Pause
 }
