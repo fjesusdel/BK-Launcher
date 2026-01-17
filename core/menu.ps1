@@ -38,7 +38,7 @@ function Show-MainMenu {
 }
 
 # ==================================================
-# ESTADO DEL SISTEMA
+# UTILIDAD: BARRA ASCII SEGURA
 # ==================================================
 
 function Draw-Bar {
@@ -47,11 +47,18 @@ function Draw-Bar {
         [int]$Width = 20
     )
 
+    if ($Percent -lt 0)   { $Percent = 0 }
+    if ($Percent -gt 100) { $Percent = 100 }
+
     $filled = [math]::Round(($Percent / 100) * $Width)
     $empty  = $Width - $filled
 
-    return ("█" * $filled) + ("░" * $empty)
+    return "[" + ("#" * $filled) + ("-" * $empty) + "]"
 }
+
+# ==================================================
+# ESTADO DEL SISTEMA
+# ==================================================
 
 function Show-SystemStatus {
 
@@ -94,10 +101,7 @@ function Show-SystemStatus {
     Write-Host "--------------------------------"
 
     $cpu = Get-CimInstance Win32_Processor
-    $cpuLoad = (Get-Counter '\Processor(_Total)\% Processor Time'
-    ).CounterSamples.CookedValue
-
-    $cpuPercent = [math]::Round($cpuLoad)
+    $cpuPercent = [int]$cpu.LoadPercentage
 
     Write-Host "Modelo        : $($cpu.Name)"
     Write-Host "Nucleos       : $($cpu.NumberOfCores)"
@@ -117,7 +121,7 @@ function Show-SystemStatus {
     $totalRAM = [math]::Round($osInfo.TotalVisibleMemorySize / 1MB, 2)
     $freeRAM  = [math]::Round($osInfo.FreePhysicalMemory / 1MB, 2)
     $usedRAM  = [math]::Round($totalRAM - $freeRAM, 2)
-    $ramPct   = [math]::Round(($usedRAM / $totalRAM) * 100)
+    $ramPct   = [int](($usedRAM / $totalRAM) * 100)
 
     Write-Host "Total         : $totalRAM GB"
     Write-Host "En uso        : $usedRAM GB"
@@ -138,7 +142,7 @@ function Show-SystemStatus {
     $totalDisk = [math]::Round($disk.Size / 1GB, 2)
     $freeDisk  = [math]::Round($disk.FreeSpace / 1GB, 2)
     $usedDisk  = [math]::Round($totalDisk - $freeDisk, 2)
-    $diskPct   = [math]::Round(($usedDisk / $totalDisk) * 100)
+    $diskPct   = [int](($usedDisk / $totalDisk) * 100)
 
     Write-Host "Unidad        : C:"
     Write-Host "Total         : $totalDisk GB"
