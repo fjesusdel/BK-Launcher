@@ -2,6 +2,12 @@
 # BK-LAUNCHER - MENU
 # ==================================================
 
+# Carga de submenús y acciones
+. "$PSScriptRoot/install.ps1"
+. "$PSScriptRoot/uninstall.ps1"
+. "$PSScriptRoot/tools.ps1"
+
+
 function Show-MainMenu {
 
     do {
