@@ -1,11 +1,6 @@
 # ==================================================
-# BK-LAUNCHER - ACTIONS (FIXED - SAFE)
+# BK-LAUNCHER - ACTIONS (FIXED - SAFE v2)
 # ==================================================
-
-# IMPORTANTE:
-# - NO se elimina ninguna funcion
-# - NO se cambia la estructura
-# - Solo se corrigen cierres prematuros y control de procesos
 
 # -------------------------------
 # UTILIDADES
@@ -44,13 +39,18 @@ function Start-BKInstaller {
 
     Write-Host "Ejecutando instalador..."
 
-    # 🔧 FIX CRÍTICO:
-    # Usamos -PassThru para mantener referencia al proceso
-    $proc = Start-Process $FilePath $Arguments -PassThru
+    # 🔧 FIX REAL:
+    # Start-Process NO admite ArgumentList vacío
+    if ([string]::IsNullOrWhiteSpace($Arguments)) {
+        $proc = Start-Process -FilePath $FilePath -PassThru
+    } else {
+        $proc = Start-Process -FilePath $FilePath -ArgumentList $Arguments -PassThru
+    }
 
-    # 🔧 FIX CRÍTICO:
-    # Esperamos EXPLICITAMENTE a que termine el instalador
-    Wait-Process -Id $proc.Id
+    # Esperar de forma segura a que termine
+    if ($proc -and $proc.Id) {
+        Wait-Process -Id $proc.Id
+    }
 
     Write-Host "Instalador finalizado."
 }
@@ -138,8 +138,6 @@ function Install-BKApplicationsWithProgress {
             }
         }
 
-        # 🔧 FIX SEGURO:
-        # Eliminar el instalador SOLO cuando ya ha terminado
         if (Test-Path $tmp) {
             Remove-Item $tmp -Force -ErrorAction SilentlyContinue
         }
