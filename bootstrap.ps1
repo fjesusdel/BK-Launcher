@@ -101,5 +101,6 @@ Write-Host "Lanzando Black Console en nuevo proceso (ExecutionPolicy Bypass)..."
 Write-Host ""
 
 Start-Process -FilePath "powershell.exe" `
-    -ArgumentList "-NoProfile -NoExit -ExecutionPolicy Bypass -File `"$launcher`"" `
+    -Verb RunAs `
+    -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$launcher`"" `
     -WorkingDirectory $BCRuntime
