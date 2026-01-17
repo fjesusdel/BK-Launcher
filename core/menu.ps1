@@ -38,6 +38,94 @@ function Show-MainMenu {
 }
 
 # ==================================================
+# MENU INSTALAR SOFTWARE
+# ==================================================
+
+function Show-InstallMenu {
+
+    $apps = Select-BKApplications -Mode "install"
+
+    if (-not $apps -or $apps.Count -eq 0) {
+        Write-Host ""
+        Write-Host "No se seleccionaron aplicaciones."
+        Pause
+        return
+    }
+
+    Clear-Host
+    Show-BlackConsoleBanner
+
+    Write-Host "INSTALAR SOFTWARE"
+    Write-Host "--------------------------------"
+    Write-Host ""
+    Write-Host "Se instalaran las siguientes aplicaciones:"
+    Write-Host ""
+
+    foreach ($app in $apps) {
+        Write-Host "- $($app.Name)"
+    }
+
+    Write-Host ""
+    $confirm = Read-Host "Desea continuar? [S/N]"
+
+    if ($confirm.Trim().ToUpper() -ne "S") {
+        Write-Host "Operacion cancelada."
+        Pause
+        return
+    }
+
+    Install-BKApplicationsWithProgress ($apps | ForEach-Object { $_.Id })
+
+    Write-Host ""
+    Write-Host "Instalacion finalizada."
+    Pause
+}
+
+# ==================================================
+# MENU DESINSTALAR SOFTWARE
+# ==================================================
+
+function Show-UninstallMenu {
+
+    $apps = Select-BKApplications -Mode "uninstall"
+
+    if (-not $apps -or $apps.Count -eq 0) {
+        Write-Host ""
+        Write-Host "No se seleccionaron aplicaciones."
+        Pause
+        return
+    }
+
+    Clear-Host
+    Show-BlackConsoleBanner
+
+    Write-Host "DESINSTALAR SOFTWARE"
+    Write-Host "--------------------------------"
+    Write-Host ""
+    Write-Host "Se desinstalaran las siguientes aplicaciones:"
+    Write-Host ""
+
+    foreach ($app in $apps) {
+        Write-Host "- $($app.Name)"
+    }
+
+    Write-Host ""
+    $confirm = Read-Host "Desea continuar? [S/N]"
+
+    if ($confirm.Trim().ToUpper() -ne "S") {
+        Write-Host "Operacion cancelada."
+        Pause
+        return
+    }
+
+    Uninstall-BKApplicationsWithProgress ($apps | ForEach-Object { $_.Id })
+
+    Write-Host ""
+    Write-Host "Desinstalacion finalizada."
+    Pause
+}
+
+# ==================================================
 # HERRAMIENTAS BLACK CONSOLE
 # ==================================================
 
@@ -66,14 +154,7 @@ function Show-ToolsMenu {
                 Clear-Host
                 Show-BlackConsoleBanner
                 Write-Host "Instalando Control de volumen BK..."
-                $ok = Install-BKVolumeControl
-                if ($ok) {
-                    Write-Host ""
-                    Write-Host "Control de volumen BK instalado correctamente."
-                } else {
-                    Write-Host ""
-                    Write-Host "Error al instalar Control de volumen BK."
-                }
+                Install-BKVolumeControl | Out-Null
                 Pause
             }
 
@@ -81,39 +162,15 @@ function Show-ToolsMenu {
                 Clear-Host
                 Show-BlackConsoleBanner
                 Write-Host "Desinstalando Control de volumen BK..."
-                $ok = Uninstall-BKVolumeControl
-                if ($ok) {
-                    Write-Host ""
-                    Write-Host "Control de volumen BK desinstalado correctamente."
-                } else {
-                    Write-Host ""
-                    Write-Host "Error al desinstalar Control de volumen BK."
-                }
+                Uninstall-BKVolumeControl | Out-Null
                 Pause
             }
 
             "3" {
                 Clear-Host
                 Show-BlackConsoleBanner
-                Write-Host "RADIAL APPS BK"
-                Write-Host "--------------------------------"
-                Write-Host ""
-                Write-Host "Menu radial flotante para acceso rapido."
-                Write-Host "Requiere Rainmeter."
-                Write-Host ""
-                $confirm = Read-Host "Desea instalarlo? [S/N]"
-                if ($confirm.Trim().ToUpper() -eq "S") {
-                    Write-Host ""
-                    Write-Host "Instalando Radial Apps BK..."
-                    $ok = Install-BKRadialApps
-                    if ($ok) {
-                        Write-Host ""
-                        Write-Host "Radial Apps BK instalado correctamente."
-                    } else {
-                        Write-Host ""
-                        Write-Host "Error al instalar Radial Apps BK."
-                    }
-                }
+                Write-Host "Instalando Radial Apps BK..."
+                Install-BKRadialApps | Out-Null
                 Pause
             }
 
@@ -121,14 +178,7 @@ function Show-ToolsMenu {
                 Clear-Host
                 Show-BlackConsoleBanner
                 Write-Host "Desinstalando Radial Apps BK..."
-                $ok = Uninstall-BKRadialApps
-                if ($ok) {
-                    Write-Host ""
-                    Write-Host "Radial Apps BK desinstalado correctamente."
-                } else {
-                    Write-Host ""
-                    Write-Host "Error al desinstalar Radial Apps BK."
-                }
+                Uninstall-BKRadialApps | Out-Null
                 Pause
             }
 
