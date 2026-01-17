@@ -239,9 +239,29 @@ function Uninstall-BKVolumeControl {
 # ==================================================
 
 function Install-BKRadialApps {
-    Write-Host "Instalando Radial Apps BK..."
-    Start-Process "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin"
-    return $true
+
+    try {
+        $tmpSkin = Join-Path $env:TEMP "BlackConsoleRadial.rmskin"
+        $url = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin"
+
+        Write-Host "Descargando Radial Apps BK..."
+        Invoke-WebRequest -Uri $url -OutFile $tmpSkin -UseBasicParsing
+
+        if (-not (Test-Path $tmpSkin)) {
+            Write-Host "ERROR: No se pudo descargar la skin." -ForegroundColor Red
+            return $false
+        }
+
+        Write-Host "Lanzando instalador de Rainmeter..."
+        Start-Process -FilePath $tmpSkin
+
+        Write-BKLog "Radial Apps BK instalado correctamente"
+        return $true
+
+    } catch {
+        Write-BKLog "Error instalando Radial Apps BK: $_" "ERROR"
+        return $false
+    }
 }
 
 function Uninstall-BKRadialApps {
