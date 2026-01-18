@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - BOOTSTRAP ESTABLE (ARQUITECTURA REAL)
+# BK-LAUNCHER - BOOTSTRAP ESTABLE (FIX DEFINITIVO)
 # ==================================================
 
 function Test-IsAdministrator {
@@ -26,15 +26,20 @@ try {
     Write-Host ""
 
     $Base = Join-Path $env:LOCALAPPDATA "BlackConsole"
+    $Tmp  = Join-Path $env:TEMP "BK-Launcher-TMP"
 
     # -------------------------------
-    # CREAR BASE SI NO EXISTE
-    # (NO BORRAR NUNCA)
+    # PREPARAR CARPETAS
     # -------------------------------
 
     if (-not (Test-Path $Base)) {
         New-Item -ItemType Directory -Path $Base | Out-Null
     }
+
+    if (Test-Path $Tmp) {
+        Remove-Item $Tmp -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $Tmp | Out-Null
 
     # -------------------------------
     # DESCARGAR REPO
@@ -46,20 +51,25 @@ try {
     Write-Host "Descargando BK-Launcher..."
     Invoke-WebRequest $zipUrl -OutFile $tmpZip -UseBasicParsing
 
-    Write-Host "Extrayendo..."
-    Expand-Archive $tmpZip $Base -Force
+    Write-Host "Extrayendo en temporal..."
+    Expand-Archive $tmpZip $Tmp -Force
     Remove-Item $tmpZip -Force
 
+    # Aplanar carpeta main
+    $inner = Get-ChildItem $Tmp | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+
     # -------------------------------
-    # APLANAR CARPETA
+    # COPIA SEGURA (FIX CLAVE)
     # -------------------------------
 
-    $inner = Get-ChildItem $Base | Where-Object { $_.PSIsContainer -and $_.Name -like "BK-Launcher*" } | Select-Object -First 1
+    Write-Host "Actualizando archivos del launcher..."
+    Copy-Item `
+        -Path (Join-Path $inner.FullName "*") `
+        -Destination $Base `
+        -Recurse `
+        -Force
 
-    if ($inner) {
-        Get-ChildItem $inner.FullName | Move-Item -Destination $Base -Force
-        Remove-Item $inner.FullName -Recurse -Force
-    }
+    Remove-Item $Tmp -Recurse -Force
 
     # -------------------------------
     # LANZAR LAUNCHER
