@@ -5,6 +5,7 @@
 # - Soporta ejecucion con y sin administrador
 # - Incluye caso especial Discord
 # - MODO USUARIO para apps de Windows (UWP)
+# - Soporte apps propias BK (volume / radial)
 # - NUNCA muestra errores en pantalla
 # ==================================================
 
@@ -29,6 +30,12 @@ function Test-BKIsAdministrator {
 function Test-BKApplicationInstalled {
     param ([hashtable]$App)
 
+    # Apps propias Black Console
+    if ($App.Type -eq "bktool") {
+        return Test-BKBuiltInInstalled $App
+    }
+
+    # Caso especial Discord
     if ($App.Id -eq "discord") {
         return Test-BKDiscordInstalled
     }
@@ -37,6 +44,36 @@ function Test-BKApplicationInstalled {
         "thirdparty" { return Test-BKThirdPartyInstalled $App }
         "windows"    { return Test-BKWindowsAppInstalled $App }
         default      { return $false }
+    }
+}
+
+# -------------------------------
+# APPS PROPIAS BK
+# -------------------------------
+
+function Test-BKBuiltInInstalled {
+    param ([hashtable]$App)
+
+    switch ($App.Id) {
+
+        "bk-volume" {
+            $base = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
+            $ahk  = Join-Path $base "volume.ahk"
+
+            return (Test-Path $base -and Test-Path $ahk)
+        }
+
+        "bk-radial" {
+            $radialPath = Join-Path `
+                $env:USERPROFILE `
+                "Documents\Rainmeter\Skins\RadialLauncher"
+
+            return (Test-Path $radialPath)
+        }
+
+        default {
+            return $false
+        }
     }
 }
 
@@ -112,8 +149,6 @@ function Test-BKWindowsAppInstalled {
     param ([hashtable]$App)
 
     try {
-        # MODO USUARIO:
-        # Solo consideramos instalada si lo esta para el usuario actual
         $packages = Get-AppxPackage -ErrorAction Stop
 
         foreach ($pkg in $packages) {
@@ -122,7 +157,6 @@ function Test-BKWindowsAppInstalled {
             }
         }
     } catch {
-        # NUNCA mostramos errores aqui
         return $false
     }
 
