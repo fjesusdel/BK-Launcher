@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - ACTIONS (STABLE v4)
+# BK-LAUNCHER - ACTIONS (STABLE v5)
 # ==================================================
 
 # -------------------------------
@@ -55,6 +55,7 @@ function Install-BKApplicationsWithProgress {
     param ([string[]]$Ids)
 
     foreach ($id in $Ids) {
+
         $app = Get-BKApplicationById $id
         if (-not $app) { continue }
 
@@ -98,23 +99,59 @@ function Install-BKApplicationsWithProgress {
 }
 
 # ==================================================
-# CONTROL DE VOLUMEN BK (AISLADO)
+# CONTROL DE VOLUMEN BK (AISLADO Y SEGURO)
 # ==================================================
+
+function Test-BKVolumeControlInstalled {
+
+    $baseDir = "C:\ProgramData\BlackConsole\Volume"
+    $exe     = Join-Path $baseDir "AutoHotkey.exe"
+    $ahk     = Join-Path $baseDir "volume.ahk"
+
+    if (-not (Test-Path $exe)) { return $false }
+    if (-not (Test-Path $ahk)) { return $false }
+
+    $proc = Get-Process AutoHotkey -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -eq $exe }
+
+    return [bool]$proc
+}
 
 function Install-BKVolumeControl {
 
-    $baseDir = "C:\ProgramData\BlackConsole\Volume"
-    $exe = Join-Path $baseDir "AutoHotkey.exe"
-    $ahk = Join-Path $baseDir "volume.ahk"
-    $url = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
+    if (Test-BKVolumeControlInstalled) {
+        Write-Host ""
+        Write-Host "Control de volumen BK ya esta INSTALADO." -ForegroundColor Yellow
+        Write-Host "No es necesario reinstalarlo."
+        Pause
+        return
+    }
 
-    New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
+    try {
+        $baseDir = "C:\ProgramData\BlackConsole\Volume"
+        $exe     = Join-Path $baseDir "AutoHotkey.exe"
+        $ahk     = Join-Path $baseDir "volume.ahk"
+        $url     = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
 
-    Invoke-WebRequest "$url/AutoHotkey.exe" -OutFile $exe -UseBasicParsing
-    Invoke-WebRequest "$url/volume.ahk" -OutFile $ahk -UseBasicParsing
+        Write-Host "Instalando Control de volumen BK..."
+        Write-Host ""
 
-    Start-Process $exe "`"$ahk`"" -WindowStyle Hidden
-    Pause
+        New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
+
+        Invoke-WebRequest "$url/AutoHotkey.exe" -OutFile $exe -UseBasicParsing
+        Invoke-WebRequest "$url/volume.ahk"     -OutFile $ahk -UseBasicParsing
+
+        Start-Process -FilePath $exe -ArgumentList "`"$ahk`"" -WindowStyle Hidden
+
+        Write-Host ""
+        Write-Host "Control de volumen BK INSTALADO Y ACTIVO." -ForegroundColor Green
+        Pause
+    }
+    catch {
+        Write-Host ""
+        Write-Host "No se pudo instalar el Control de volumen BK." -ForegroundColor Red
+        Pause
+    }
 }
 
 function Uninstall-BKVolumeControl {
@@ -123,7 +160,7 @@ function Uninstall-BKVolumeControl {
 }
 
 # ==================================================
-# RADIAL APPS BK (RAINMETER SEGURO)
+# RADIAL APPS BK (NO TOCADO)
 # ==================================================
 
 function Get-BKRainmeterExe {
@@ -137,60 +174,19 @@ function Get-BKRainmeterExe {
     return $null
 }
 
-function Get-BKLatestRainmeterInstaller {
-
-    $api = "https://api.github.com/repos/rainmeter/rainmeter/releases/latest"
-
-    try {
-        $release = Invoke-RestMethod -Uri $api -UseBasicParsing
-        $asset = $release.assets | Where-Object {
-            $_.name -match "^Rainmeter-.*\.exe$"
-        } | Select-Object -First 1
-
-        if (-not $asset) {
-            return $null
-        }
-
-        return $asset.browser_download_url
-    }
-    catch {
-        return $null
-    }
-}
-
 function Install-BKRadialApps {
 
     $rainmeterExe = Get-BKRainmeterExe
 
     if (-not $rainmeterExe) {
-
-        Write-Host "Rainmeter no detectado. Instalando..." -ForegroundColor Yellow
-
-        $installerUrl = Get-BKLatestRainmeterInstaller
-        if (-not $installerUrl) {
-            Write-Host "ERROR: No se pudo obtener el instalador de Rainmeter." -ForegroundColor Red
-            Pause
-            return
-        }
-
-        $tmp = Join-Path $env:TEMP "Rainmeter.exe"
-
-        Invoke-WebRequest -Uri $installerUrl -OutFile $tmp -UseBasicParsing
-
-        Start-Process -FilePath $tmp -ArgumentList "/S" -Wait
-        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        Write-Host "Rainmeter no detectado. Instalelo primero."
+        Pause
+        return
     }
 
     $skin = Join-Path $env:TEMP "BlackConsoleRadial_1.0.rmskin"
-
-    Invoke-WebRequest `
-        -Uri "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin" `
+    Invoke-WebRequest "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin" `
         -OutFile $skin -UseBasicParsing
-
-    Write-Host ""
-    Write-Host "Se abrira el instalador de Rainmeter."
-    Write-Host "Complete la instalacion y pulse ENTER."
-    Write-Host ""
 
     Start-Process $skin
     Pause
