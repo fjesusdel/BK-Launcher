@@ -28,13 +28,13 @@ try {
     $Base = Join-Path $env:LOCALAPPDATA "BlackConsole"
 
     # -------------------------------
-    # LIMPIAR INSTALACION ANTERIOR
+    # CREAR BASE SI NO EXISTE
+    # (NO BORRAR NUNCA)
     # -------------------------------
 
-    if (Test-Path $Base) {
-        Remove-Item $Base -Recurse -Force
+    if (-not (Test-Path $Base)) {
+        New-Item -ItemType Directory -Path $Base | Out-Null
     }
-    New-Item -ItemType Directory -Path $Base | Out-Null
 
     # -------------------------------
     # DESCARGAR REPO
@@ -50,10 +50,16 @@ try {
     Expand-Archive $tmpZip $Base -Force
     Remove-Item $tmpZip -Force
 
-    # Aplanar carpeta
-    $inner = Get-ChildItem $Base | Where-Object { $_.PSIsContainer } | Select-Object -First 1
-    Get-ChildItem $inner.FullName | Move-Item -Destination $Base -Force
-    Remove-Item $inner.FullName -Recurse -Force
+    # -------------------------------
+    # APLANAR CARPETA
+    # -------------------------------
+
+    $inner = Get-ChildItem $Base | Where-Object { $_.PSIsContainer -and $_.Name -like "BK-Launcher*" } | Select-Object -First 1
+
+    if ($inner) {
+        Get-ChildItem $inner.FullName | Move-Item -Destination $Base -Force
+        Remove-Item $inner.FullName -Recurse -Force
+    }
 
     # -------------------------------
     # LANZAR LAUNCHER
