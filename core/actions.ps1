@@ -192,41 +192,81 @@ function Uninstall-BKApplicationsWithProgress {
 # CONTROL DE VOLUMEN BK (APP PROPIA AISLADA)
 # ==================================================
 
+# ==================================================
+# CONTROL DE VOLUMEN BK (FIX DEFINITIVO)
+# ==================================================
+
 function Install-BKVolumeControl {
 
     try {
-        $baseDir = "C:\Program Files\BlackConsole\Volume"
-        $exe     = Join-Path $baseDir "AutoHotkey.exe"
-        $ahk     = Join-Path $baseDir "volume.ahk"
+        $baseDir   = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
+        $exePath   = Join-Path $baseDir "AutoHotkey.exe"
+        $scriptAHK = Join-Path $baseDir "volume.ahk"
 
         $baseUrl = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
 
-        if (-not (Test-Path $baseDir)) {
-            New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
+        Write-Host "Instalando Control de volumen BK..."
+        Write-Host ""
+
+        # Crear carpeta
+        New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
+
+        # Descargar archivos
+        Invoke-WebRequest "$baseUrl/AutoHotkey.exe" -OutFile $exePath -UseBasicParsing
+        Invoke-WebRequest "$baseUrl/volume.ahk"     -OutFile $scriptAHK -UseBasicParsing
+
+        if (-not (Test-Path $exePath) -or -not (Test-Path $scriptAHK)) {
+            Write-Host "ERROR: Archivos de volumen incompletos." -ForegroundColor Red
+            Pause
+            return $false
         }
 
-        Invoke-WebRequest "$baseUrl/AutoHotkey.exe" -OutFile $exe -UseBasicParsing
-        Invoke-WebRequest "$baseUrl/volume.ahk"     -OutFile $ahk -UseBasicParsing
+        # Lanzar AutoHotkey DESACOPLADO
+        Start-Process `
+            -FilePath $exePath `
+            -ArgumentList "`"$scriptAHK`"" `
+            -WindowStyle Hidden
 
-        # Registrar inicio de Windows
-        $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-        New-ItemProperty `
-            -Path $runKey `
-            -Name "BlackConsoleVolume" `
-            -Value "`"$exe`" `"$ahk`"" `
-            -PropertyType String `
-            -Force | Out-Null
+        Start-Sleep -Seconds 1
 
-        Write-BKLog "Control de volumen BK instalado correctamente"
-        Write-Host "Control de volumen BK INSTALADO." -ForegroundColor Green
+        # Verificar que el proceso está activo
+        $ahkProc = Get-Process AutoHotkey -ErrorAction SilentlyContinue
+        if (-not $ahkProc) {
+            Write-Host "ERROR: El servicio de volumen no se ha iniciado." -ForegroundColor Red
+            Pause
+            return $false
+        }
+
+        # -------------------------------
+        # REGISTRAR ARRANQUE CON WINDOWS
+        # -------------------------------
+
+        $startup = [Environment]::GetFolderPath("Startup")
+        $lnkPath = Join-Path $startup "BlackConsole Volume.lnk"
+
+        $wsh = New-Object -ComObject WScript.Shell
+        $lnk = $wsh.CreateShortcut($lnkPath)
+        $lnk.TargetPath = $exePath
+        $lnk.Arguments  = "`"$scriptAHK`""
+        $lnk.WorkingDirectory = $baseDir
+        $lnk.WindowStyle = 7
+        $lnk.Save()
+
+        Write-Host ""
+        Write-Host "Control de volumen BK INSTALADO Y ACTIVO." -ForegroundColor Green
+        Write-Host "Se iniciará automáticamente con Windows."
+        Pause
+
         return $true
-
-    } catch {
-        Write-BKLog "Error instalando Control de volumen BK: $_" "ERROR"
-        Write-Host "Error instalando Control de volumen BK." -ForegroundColor Red
+    }
+    catch {
+        Write-Host "Error instalando Control de volumen BK" -ForegroundColor Red
+        Write-Host $_
+        Pause
         return $false
     }
 }
+
 
 function Uninstall-BKVolumeControl {
 
