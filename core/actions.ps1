@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - ACTIONS (FIXED - SAFE v2)
+# BK-LAUNCHER - ACTIONS (SAFE v3 - APPS PROPIAS AISLADAS)
 # ==================================================
 
 # -------------------------------
@@ -39,15 +39,12 @@ function Start-BKInstaller {
 
     Write-Host "Ejecutando instalador..."
 
-    # 🔧 FIX REAL:
-    # Start-Process NO admite ArgumentList vacío
     if ([string]::IsNullOrWhiteSpace($Arguments)) {
         $proc = Start-Process -FilePath $FilePath -PassThru
     } else {
         $proc = Start-Process -FilePath $FilePath -ArgumentList $Arguments -PassThru
     }
 
-    # Esperar de forma segura a que termine
     if ($proc -and $proc.Id) {
         Wait-Process -Id $proc.Id
     }
@@ -56,7 +53,7 @@ function Start-BKInstaller {
 }
 
 # ==================================================
-# INSTALACION SOFTWARE
+# INSTALACION SOFTWARE TERCEROS
 # ==================================================
 
 function Install-BKApplicationsWithProgress {
@@ -83,7 +80,6 @@ function Install-BKApplicationsWithProgress {
                 if (Invoke-BKDownload `
                     "https://www.battle.net/download/getInstallerForGame?os=win&gameProgram=BATTLENET_APP&version=Live" `
                     $tmp) {
-
                     Start-BKInstaller $tmp
                 }
             }
@@ -92,7 +88,6 @@ function Install-BKApplicationsWithProgress {
                 if (Invoke-BKDownload `
                     "https://www.google.com/chrome/?standalone=1&platform=win64" `
                     $tmp) {
-
                     Start-BKInstaller $tmp "/silent /install"
                 }
             }
@@ -101,7 +96,6 @@ function Install-BKApplicationsWithProgress {
                 if (Invoke-BKDownload `
                     "https://discord.com/api/download?platform=win" `
                     $tmp) {
-
                     Start-BKInstaller $tmp "/S"
                 }
             }
@@ -110,7 +104,6 @@ function Install-BKApplicationsWithProgress {
                 if (Invoke-BKDownload `
                     "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe" `
                     $tmp) {
-
                     Start-BKInstaller $tmp "/S"
                 }
             }
@@ -119,7 +112,6 @@ function Install-BKApplicationsWithProgress {
                 if (Invoke-BKDownload `
                     "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=es-ES" `
                     $tmp) {
-
                     Start-BKInstaller $tmp "-ms"
                 }
             }
@@ -128,7 +120,6 @@ function Install-BKApplicationsWithProgress {
                 if (Invoke-BKDownload `
                     "https://www.7-zip.org/a/7z2301-x64.exe" `
                     $tmp) {
-
                     Start-BKInstaller $tmp "/S"
                 }
             }
@@ -149,7 +140,7 @@ function Install-BKApplicationsWithProgress {
 }
 
 # ==================================================
-# DESINSTALACION SOFTWARE
+# DESINSTALACION SOFTWARE TERCEROS
 # ==================================================
 
 function Uninstall-BKApplicationsWithProgress {
@@ -198,44 +189,67 @@ function Uninstall-BKApplicationsWithProgress {
 }
 
 # ==================================================
-# CONTROL DE VOLUMEN BK
+# CONTROL DE VOLUMEN BK (APP PROPIA AISLADA)
 # ==================================================
 
 function Install-BKVolumeControl {
 
     try {
-        $targetDir = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
-        $exe = Join-Path $targetDir "AutoHotkey.exe"
-        $ahk = Join-Path $targetDir "volume.ahk"
+        $baseDir = "C:\Program Files\BlackConsole\Volume"
+        $exe     = Join-Path $baseDir "AutoHotkey.exe"
+        $ahk     = Join-Path $baseDir "volume.ahk"
 
         $baseUrl = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
 
-        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+        if (-not (Test-Path $baseDir)) {
+            New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
+        }
 
         Invoke-WebRequest "$baseUrl/AutoHotkey.exe" -OutFile $exe -UseBasicParsing
-        Invoke-WebRequest "$baseUrl/volume.ahk" -OutFile $ahk -UseBasicParsing
+        Invoke-WebRequest "$baseUrl/volume.ahk"     -OutFile $ahk -UseBasicParsing
 
-        Start-Process $exe "`"$ahk`"" -WindowStyle Hidden
+        # Registrar inicio de Windows
+        $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+        New-ItemProperty `
+            -Path $runKey `
+            -Name "BlackConsoleVolume" `
+            -Value "`"$exe`" `"$ahk`"" `
+            -PropertyType String `
+            -Force | Out-Null
 
         Write-BKLog "Control de volumen BK instalado correctamente"
+        Write-Host "Control de volumen BK INSTALADO." -ForegroundColor Green
         return $true
 
     } catch {
         Write-BKLog "Error instalando Control de volumen BK: $_" "ERROR"
+        Write-Host "Error instalando Control de volumen BK." -ForegroundColor Red
         return $false
     }
 }
 
 function Uninstall-BKVolumeControl {
 
-    Get-Process AutoHotkey -ErrorAction SilentlyContinue | Stop-Process -Force
-    Remove-Item "$env:LOCALAPPDATA\BlackConsole\tools\volume" -Recurse -Force -ErrorAction SilentlyContinue
-    Write-BKLog "Control de volumen BK desinstalado"
-    return $true
+    try {
+        $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+        Remove-ItemProperty -Path $runKey -Name "BlackConsoleVolume" -ErrorAction SilentlyContinue
+
+        Get-Process AutoHotkey -ErrorAction SilentlyContinue | Stop-Process -Force
+        Remove-Item "C:\Program Files\BlackConsole\Volume" -Recurse -Force -ErrorAction SilentlyContinue
+
+        Write-BKLog "Control de volumen BK desinstalado"
+        Write-Host "Control de volumen BK DESINSTALADO." -ForegroundColor Yellow
+        return $true
+
+    } catch {
+        Write-BKLog "Error desinstalando Control de volumen BK: $_" "ERROR"
+        Write-Host "Error desinstalando Control de volumen BK." -ForegroundColor Red
+        return $false
+    }
 }
 
 # ==================================================
-# RADIAL APPS BK
+# RADIAL APPS BK (APP PROPIA)
 # ==================================================
 
 function Install-BKRadialApps {
@@ -254,18 +268,15 @@ function Install-BKRadialApps {
         }
 
         Write-Host ""
-        Write-Host "Abriendo instalador de Rainmeter..."
-        Write-Host "Cuando termine, vuelva aqui y pulse ENTER."
+        Write-Host "Se abrira el instalador de Rainmeter."
+        Write-Host "Complete la instalacion y vuelva aqui."
         Write-Host ""
 
-        # 🔑 CLAVE: SIN -Wait (archivo asociado)
         Start-Process -FilePath $tmpSkin
-
-        # Bloqueo controlado por el launcher, no por Windows
         Pause
 
         Write-Host ""
-        Write-Host "Radial Apps BK instalado correctamente."
+        Write-Host "Radial Apps BK instalado."
         Pause
 
     } catch {
