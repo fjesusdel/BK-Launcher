@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - ACTIONS (STABLE v5)
+# BK-LAUNCHER - ACTIONS (STABLE v5.1)
 # ==================================================
 
 # -------------------------------
@@ -99,7 +99,7 @@ function Install-BKApplicationsWithProgress {
 }
 
 # ==================================================
-# CONTROL DE VOLUMEN BK (AISLADO Y SEGURO)
+# CONTROL DE VOLUMEN BK (AISLADO)
 # ==================================================
 
 function Test-BKVolumeControlInstalled {
@@ -122,7 +122,6 @@ function Install-BKVolumeControl {
     if (Test-BKVolumeControlInstalled) {
         Write-Host ""
         Write-Host "Control de volumen BK ya esta INSTALADO." -ForegroundColor Yellow
-        Write-Host "No es necesario reinstalarlo."
         Pause
         return
     }
@@ -155,12 +154,24 @@ function Install-BKVolumeControl {
 }
 
 function Uninstall-BKVolumeControl {
+
+    Clear-Host
+    Show-BlackConsoleBanner
+
+    Write-Host "DESINSTALANDO CONTROL DE VOLUMEN BK"
+    Write-Host "----------------------------------"
+    Write-Host ""
+
     Get-Process AutoHotkey -ErrorAction SilentlyContinue | Stop-Process -Force
     Remove-Item "C:\ProgramData\BlackConsole\Volume" -Recurse -Force -ErrorAction SilentlyContinue
+
+    Write-Host ""
+    Write-Host "Control de volumen BK DESINSTALADO correctamente." -ForegroundColor Green
+    Pause
 }
 
 # ==================================================
-# RADIAL APPS BK (NO TOCADO)
+# RADIAL APPS BK (SIN CAMBIOS)
 # ==================================================
 
 function Get-BKRainmeterExe {
