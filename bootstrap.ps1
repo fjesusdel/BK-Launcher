@@ -1,5 +1,5 @@
 # ==================================================
-# BK-LAUNCHER - BOOTSTRAP ESTABLE (FIX DEFINITIVO)
+# BK-LAUNCHER - BOOTSTRAP ESTABLE (NO TOCA TOOLS)
 # ==================================================
 
 function Test-IsAdministrator {
@@ -26,62 +26,59 @@ try {
     Write-Host ""
 
     $Base = Join-Path $env:LOCALAPPDATA "BlackConsole"
-    $Tmp  = Join-Path $env:TEMP "BK-Launcher-TMP"
 
-    # -------------------------------
-    # PREPARAR CARPETAS
-    # -------------------------------
+    # Carpetas que SI gestionamos
+    $CoreDirs = @("core","apps","config","logs")
 
     if (-not (Test-Path $Base)) {
         New-Item -ItemType Directory -Path $Base | Out-Null
     }
 
-    if (Test-Path $Tmp) {
-        Remove-Item $Tmp -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $Tmp | Out-Null
-
     # -------------------------------
-    # DESCARGAR REPO
+    # DESCARGAR REPO A TEMPORAL
     # -------------------------------
 
     $zipUrl = "https://github.com/fjesusdel/BK-Launcher/archive/refs/heads/main.zip"
     $tmpZip = Join-Path $env:TEMP "bk-launcher.zip"
+    $tmpDir = Join-Path $env:TEMP "bk-launcher-tmp"
+
+    Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
 
     Write-Host "Descargando BK-Launcher..."
     Invoke-WebRequest $zipUrl -OutFile $tmpZip -UseBasicParsing
 
     Write-Host "Extrayendo en temporal..."
-    Expand-Archive $tmpZip $Tmp -Force
+    Expand-Archive $tmpZip $tmpDir -Force
     Remove-Item $tmpZip -Force
 
-    # Aplanar carpeta main
-    $inner = Get-ChildItem $Tmp | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+    $inner = Get-ChildItem $tmpDir | Where-Object { $_.PSIsContainer } | Select-Object -First 1
 
     # -------------------------------
-    # COPIA SEGURA (FIX CLAVE)
+    # ACTUALIZAR SOLO LO NECESARIO
     # -------------------------------
 
-    Write-Host "Actualizando archivos del launcher..."
-    Copy-Item `
-        -Path (Join-Path $inner.FullName "*") `
-        -Destination $Base `
-        -Recurse `
-        -Force
+    foreach ($dir in $CoreDirs) {
+        $src = Join-Path $inner.FullName $dir
+        $dst = Join-Path $Base $dir
 
-    Remove-Item $Tmp -Recurse -Force
+        if (Test-Path $dst) {
+            Remove-Item $dst -Recurse -Force
+        }
+
+        if (Test-Path $src) {
+            Copy-Item $src $dst -Recurse -Force
+        }
+    }
+
+    # launcher.ps1
+    Copy-Item (Join-Path $inner.FullName "launcher.ps1") `
+        (Join-Path $Base "launcher.ps1") -Force
+
+    Remove-Item $tmpDir -Recurse -Force
 
     # -------------------------------
     # LANZAR LAUNCHER
     # -------------------------------
-
-    $launcher = Join-Path $Base "launcher.ps1"
-
-    if (-not (Test-Path $launcher)) {
-        Write-Host "ERROR: launcher.ps1 no encontrado" -ForegroundColor Red
-        Pause
-        return
-    }
 
     Write-Host ""
     Write-Host "Lanzando Black Console..."
@@ -91,7 +88,7 @@ try {
         -NoProfile `
         -NoExit `
         -ExecutionPolicy Bypass `
-        -File "$launcher" `
+        -File (Join-Path $Base "launcher.ps1") `
         -WorkingDirectory $Base
 }
 catch {
