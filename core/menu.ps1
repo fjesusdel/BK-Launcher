@@ -180,6 +180,42 @@ function Show-SystemStatus {
 }
 
 # ==================================================
+# HERRAMIENTAS BLACK CONSOLE
+# ==================================================
+
+function Show-ToolsMenu {
+
+    do {
+        Clear-Host
+        Show-BlackConsoleBanner
+
+        Write-Host "HERRAMIENTAS BLACK CONSOLE"
+        Write-Host "--------------------------------"
+        Write-Host ""
+        Write-Host "1) Instalar Control de volumen BK"
+        Write-Host "2) Desinstalar Control de volumen BK"
+        Write-Host "3) Instalar Radial Apps BK"
+        Write-Host "4) Desinstalar Radial Apps BK"
+        Write-Host ""
+        Write-Host "0) Volver"
+        Write-Host ""
+
+        $option = Read-Host "Seleccione una opcion"
+
+        switch ($option) {
+            "1" { Install-BKVolumeControl }
+            "2" { Uninstall-BKVolumeControl }
+            "3" { Install-BKRadialApps }
+            "4" { Uninstall-BKRadialApps }
+            "0" { return }   # 🔑 CLAVE: volver al menú principal
+            default { Pause }
+        }
+
+    } while ($true)
+}
+
+
+# ==================================================
 # RESTO
 # ==================================================
 
