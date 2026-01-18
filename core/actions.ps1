@@ -137,21 +137,54 @@ function Get-BKRainmeterExe {
     return $null
 }
 
+function Get-BKLatestRainmeterInstaller {
+
+    $api = "https://api.github.com/repos/rainmeter/rainmeter/releases/latest"
+
+    try {
+        $release = Invoke-RestMethod -Uri $api -UseBasicParsing
+        $asset = $release.assets | Where-Object {
+            $_.name -match "^Rainmeter-.*\.exe$"
+        } | Select-Object -First 1
+
+        if (-not $asset) {
+            return $null
+        }
+
+        return $asset.browser_download_url
+    }
+    catch {
+        return $null
+    }
+}
+
 function Install-BKRadialApps {
 
     $rainmeterExe = Get-BKRainmeterExe
 
     if (-not $rainmeterExe) {
 
-        Write-Host "Rainmeter no detectado. Instalando..."
+        Write-Host "Rainmeter no detectado. Instalando..." -ForegroundColor Yellow
+
+        $installerUrl = Get-BKLatestRainmeterInstaller
+        if (-not $installerUrl) {
+            Write-Host "ERROR: No se pudo obtener el instalador de Rainmeter." -ForegroundColor Red
+            Pause
+            return
+        }
+
         $tmp = Join-Path $env:TEMP "Rainmeter.exe"
-        Invoke-WebRequest "https://www.rainmeter.net/releases/Rainmeter-4.5.18.exe" -OutFile $tmp -UseBasicParsing
-        Start-Process $tmp "/S" -Wait
-        Remove-Item $tmp -Force
+
+        Invoke-WebRequest -Uri $installerUrl -OutFile $tmp -UseBasicParsing
+
+        Start-Process -FilePath $tmp -ArgumentList "/S" -Wait
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
     }
 
     $skin = Join-Path $env:TEMP "BlackConsoleRadial_1.0.rmskin"
-    Invoke-WebRequest "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin" `
+
+    Invoke-WebRequest `
+        -Uri "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin" `
         -OutFile $skin -UseBasicParsing
 
     Write-Host ""
