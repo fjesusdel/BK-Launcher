@@ -1,203 +1,208 @@
 # ==================================================
-# BK-LAUNCHER - SELECTION
-# ==================================================
-# - Seleccion por numeros separados por comas
-# - Install  : solo apps de terceros
-# - Uninstall: terceros + apps de Windows
+# BK-LAUNCHER - ACTIONS (STABLE v5.1)
 # ==================================================
 
-# --------------------------------------------------
-# MENU: INSTALAR SOFTWARE
-# --------------------------------------------------
+# -------------------------------
+# UTILIDADES GENERALES
+# -------------------------------
 
-function Show-InstallMenu {
-
-    $apps = Select-BKApplications -Mode install
-    if (-not $apps -or $apps.Count -eq 0) {
-        return
-    }
-
-    $ids = $apps | Select-Object -ExpandProperty Id
-    Install-BKApplicationsWithProgress $ids
+function Get-BKApplicationById {
+    param ([string]$Id)
+    Get-BKApplications | Where-Object { $_.Id -eq $Id }
 }
 
-# --------------------------------------------------
-# MENU: DESINSTALAR SOFTWARE
-# --------------------------------------------------
-
-function Show-UninstallMenu {
-
-    $apps = Select-BKApplications -Mode uninstall
-    if (-not $apps -or $apps.Count -eq 0) {
-        return
-    }
-
-    $ids = $apps | Select-Object -ExpandProperty Id
-    Uninstall-BKApplicationsWithProgress $ids
-}
-
-# --------------------------------------------------
-# MENU: HERRAMIENTAS BLACK CONSOLE (UX ELEGANTE)
-# --------------------------------------------------
-
-function Show-ToolsMenu {
-
-    do {
-        Clear-Host
-        Show-BlackConsoleBanner
-
-        Write-Host "HERRAMIENTAS BLACK CONSOLE" -ForegroundColor Cyan
-        Write-Host "--------------------------------"
-        Write-Host ""
-
-        # -------------------------------
-        # CONTROL DE VOLUMEN BK
-        # -------------------------------
-
-        $volInstalled = Test-BKVolumeControlInstalled
-
-        if ($volInstalled) {
-            Write-Host " 1) [OK] Control de volumen BK" -ForegroundColor Green
-            Write-Host "     Accion: Desinstalar" -ForegroundColor DarkGray
-        } else {
-            Write-Host " 1) [  ] Control de volumen BK" -ForegroundColor DarkGray
-            Write-Host "     Accion: Instalar" -ForegroundColor DarkGray
-        }
-
-        Write-Host ""
-
-        # -------------------------------
-        # RADIAL APPS BK
-        # -------------------------------
-
-        $radialPath = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
-        $radInstalled = Test-Path $radialPath
-
-        if ($radInstalled) {
-            Write-Host " 2) [OK] Radial Apps BK" -ForegroundColor Green
-            Write-Host "     Accion: Desinstalar" -ForegroundColor DarkGray
-        } else {
-            Write-Host " 2) [  ] Radial Apps BK" -ForegroundColor DarkGray
-            Write-Host "     Accion: Instalar" -ForegroundColor DarkGray
-        }
-
-        Write-Host ""
-        Write-Host "--------------------------------"
-        Write-Host " 0) Volver"
-        Write-Host ""
-
-        $opt = Read-Host "Seleccione una opcion"
-
-        switch ($opt) {
-
-            "1" {
-                if ($volInstalled) {
-                    Uninstall-BKVolumeControl
-                } else {
-                    Install-BKVolumeControl
-                }
-            }
-
-            "2" {
-                if ($radInstalled) {
-                    Uninstall-BKRadialApps
-                    Pause
-                } else {
-                    Install-BKRadialApps
-                }
-            }
-
-            "0" { break }
-            default { Pause }
-        }
-
-    } while ($true)
-}
-
-# --------------------------------------------------
-# SELECCION GENERICA DE APPS
-# --------------------------------------------------
-
-function Select-BKApplications {
+function Invoke-BKDownload {
     param (
-        [Parameter(Mandatory)]
-        [ValidateSet("install","uninstall")]
-        [string]$Mode
+        [string]$Url,
+        [string]$OutFile
+    )
+    try {
+        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+        return $true
+    } catch {
+        Write-BKLog "Error descargando $Url" "ERROR"
+        return $false
+    }
+}
+
+function Start-BKInstaller {
+    param (
+        [string]$FilePath,
+        [string]$Arguments = ""
     )
 
-    $allApps = Get-BKApplicationsStatus | Sort-Object Name
-
-    if ($Mode -eq "install") {
-        $thirdPartyApps = $allApps | Where-Object { $_.Type -eq "thirdparty" }
-        $windowsApps   = @()
-    }
-    else {
-        $thirdPartyApps = $allApps | Where-Object { $_.Type -eq "thirdparty" }
-        $windowsApps   = $allApps | Where-Object { $_.Type -eq "windows" }
+    if (-not (Test-Path $FilePath)) {
+        Write-Host "Instalador no encontrado."
+        return
     }
 
-    do {
+    if ([string]::IsNullOrWhiteSpace($Arguments)) {
+        $proc = Start-Process -FilePath $FilePath -PassThru
+    } else {
+        $proc = Start-Process -FilePath $FilePath -ArgumentList $Arguments -PassThru
+    }
+
+    if ($proc) {
+        Wait-Process -Id $proc.Id
+    }
+}
+
+# ==================================================
+# INSTALACION SOFTWARE TERCEROS
+# ==================================================
+
+function Install-BKApplicationsWithProgress {
+    param ([string[]]$Ids)
+
+    foreach ($id in $Ids) {
+
+        $app = Get-BKApplicationById $id
+        if (-not $app) { continue }
+
         Clear-Host
         Show-BlackConsoleBanner
-
-        Write-Host "SELECCIONAR APLICACIONES A $($Mode.ToUpper())" -ForegroundColor Cyan
-        Write-Host "--------------------------------"
-        Write-Host ""
-        Write-Host "Numeros separados por comas (ej: 1,3,5)"
-        Write-Host "ENTER = continuar | 0 = cancelar"
+        Write-Host "INSTALANDO: $($app.Name)"
         Write-Host ""
 
-        $indexMap = @{}
-        $index = 1
+        $tmp = Join-Path $env:TEMP "$id-installer.exe"
 
-        Write-Host "SOFTWARES Y APLICACIONES" -ForegroundColor Cyan
-        Write-Host "--------------------------------"
-
-        foreach ($app in $thirdPartyApps) {
-            if ($app.Installed) {
-                Write-Host ("{0,2}) [OK] {1}" -f $index, $app.Name) -ForegroundColor Green
-            } else {
-                Write-Host ("{0,2}) [  ] {1}" -f $index, $app.Name) -ForegroundColor DarkGray
+        switch ($id) {
+            "battlenet" {
+                Invoke-BKDownload "https://www.battle.net/download/getInstallerForGame?os=win&gameProgram=BATTLENET_APP&version=Live" $tmp | Out-Null
+                Start-BKInstaller $tmp
             }
-
-            $indexMap[$index] = $app
-            $index++
-        }
-
-        if ($Mode -eq "uninstall" -and $windowsApps.Count -gt 0) {
-            Write-Host ""
-            Write-Host "APPS DE WINDOWS" -ForegroundColor Cyan
-            Write-Host "--------------------------------"
-
-            foreach ($app in $windowsApps) {
-                if ($app.Installed) {
-                    Write-Host ("{0,2}) [OK] {1}" -f $index, $app.Name) -ForegroundColor Green
-                } else {
-                    Write-Host ("{0,2}) [  ] {1}" -f $index, $app.Name) -ForegroundColor DarkGray
-                }
-
-                $indexMap[$index] = $app
-                $index++
+            "chrome" {
+                Invoke-BKDownload "https://www.google.com/chrome/?standalone=1&platform=win64" $tmp | Out-Null
+                Start-BKInstaller $tmp "/silent /install"
+            }
+            "discord" {
+                Invoke-BKDownload "https://discord.com/api/download?platform=win" $tmp | Out-Null
+                Start-BKInstaller $tmp "/S"
+            }
+            "steam" {
+                Invoke-BKDownload "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe" $tmp | Out-Null
+                Start-BKInstaller $tmp "/S"
+            }
+            "firefox" {
+                Invoke-BKDownload "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=es-ES" $tmp | Out-Null
+                Start-BKInstaller $tmp "-ms"
+            }
+            "7zip" {
+                Invoke-BKDownload "https://www.7-zip.org/a/7z2301-x64.exe" $tmp | Out-Null
+                Start-BKInstaller $tmp "/S"
             }
         }
 
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        Pause
+    }
+}
+
+# ==================================================
+# CONTROL DE VOLUMEN BK (AISLADO)
+# ==================================================
+
+function Test-BKVolumeControlInstalled {
+
+    $baseDir = "C:\ProgramData\BlackConsole\Volume"
+    $exe     = Join-Path $baseDir "AutoHotkey.exe"
+    $ahk     = Join-Path $baseDir "volume.ahk"
+
+    if (-not (Test-Path $exe)) { return $false }
+    if (-not (Test-Path $ahk)) { return $false }
+
+    $proc = Get-Process AutoHotkey -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -eq $exe }
+
+    return [bool]$proc
+}
+
+function Install-BKVolumeControl {
+
+    if (Test-BKVolumeControlInstalled) {
         Write-Host ""
-        $input = Read-Host "Seleccion"
+        Write-Host "Control de volumen BK ya esta INSTALADO." -ForegroundColor Yellow
+        Pause
+        return
+    }
 
-        if ($input -eq "0") { return $null }
-        if ([string]::IsNullOrWhiteSpace($input)) { return @() }
+    try {
+        $baseDir = "C:\ProgramData\BlackConsole\Volume"
+        $exe     = Join-Path $baseDir "AutoHotkey.exe"
+        $ahk     = Join-Path $baseDir "volume.ahk"
+        $url     = "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/volume"
 
-        $selection = @()
-        foreach ($part in $input -split ",") {
-            if ($part.Trim() -match '^\d+$') {
-                $num = [int]$part.Trim()
-                if ($indexMap.ContainsKey($num)) {
-                    $selection += $indexMap[$num]
-                }
-            }
-        }
+        Write-Host "Instalando Control de volumen BK..."
+        Write-Host ""
 
-        return $selection
+        New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
 
-    } while ($true)
+        Invoke-WebRequest "$url/AutoHotkey.exe" -OutFile $exe -UseBasicParsing
+        Invoke-WebRequest "$url/volume.ahk"     -OutFile $ahk -UseBasicParsing
+
+        Start-Process -FilePath $exe -ArgumentList "`"$ahk`"" -WindowStyle Hidden
+
+        Write-Host ""
+        Write-Host "Control de volumen BK INSTALADO Y ACTIVO." -ForegroundColor Green
+        Pause
+    }
+    catch {
+        Write-Host ""
+        Write-Host "No se pudo instalar el Control de volumen BK." -ForegroundColor Red
+        Pause
+    }
+}
+
+function Uninstall-BKVolumeControl {
+
+    Clear-Host
+    Show-BlackConsoleBanner
+
+    Write-Host "DESINSTALANDO CONTROL DE VOLUMEN BK"
+    Write-Host "----------------------------------"
+    Write-Host ""
+
+    Get-Process AutoHotkey -ErrorAction SilentlyContinue | Stop-Process -Force
+    Remove-Item "C:\ProgramData\BlackConsole\Volume" -Recurse -Force -ErrorAction SilentlyContinue
+
+    Write-Host ""
+    Write-Host "Control de volumen BK DESINSTALADO correctamente." -ForegroundColor Green
+    Pause
+}
+
+# ==================================================
+# RADIAL APPS BK (SIN CAMBIOS)
+# ==================================================
+
+function Get-BKRainmeterExe {
+    $paths = @(
+        "C:\Program Files\Rainmeter\Rainmeter.exe",
+        "C:\Program Files (x86)\Rainmeter\Rainmeter.exe"
+    )
+    foreach ($p in $paths) {
+        if (Test-Path $p) { return $p }
+    }
+    return $null
+}
+
+function Install-BKRadialApps {
+
+    $rainmeterExe = Get-BKRainmeterExe
+
+    if (-not $rainmeterExe) {
+        Write-Host "Rainmeter no detectado. Instalelo primero."
+        Pause
+        return
+    }
+
+    $skin = Join-Path $env:TEMP "BlackConsoleRadial_1.0.rmskin"
+    Invoke-WebRequest "https://raw.githubusercontent.com/fjesusdel/BK-Launcher/main/tools/radial/BlackConsoleRadial_1.0.rmskin" `
+        -OutFile $skin -UseBasicParsing
+
+    Start-Process $skin
+    Pause
+}
+
+function Uninstall-BKRadialApps {
+    Remove-Item "$env:USERPROFILE\Documents\Rainmeter\Skins\RadialLauncher" -Recurse -Force -ErrorAction SilentlyContinue
 }
