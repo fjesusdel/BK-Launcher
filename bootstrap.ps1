@@ -1,6 +1,6 @@
-# ==================================================
+# =================================================
 # BK-LAUNCHER - BOOTSTRAP ESTABLE (NO TOCA TOOLS)
-# ==================================================
+# =================================================
 
 function Test-IsAdministrator {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
