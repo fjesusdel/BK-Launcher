@@ -28,7 +28,7 @@ function Show-MainMenu {
         switch ($option) {
             "1" { Show-InstallMenu }
             "2" { Show-UninstallMenu }
-            "3" { Show-ToolsMenu }
+            "3" { Show-ToolsMenu }   # ← delega en selection.ps1
             "4" { Show-SystemStatus }
             "5" { Show-LogsMenu }
             "6" { Show-About }
@@ -71,10 +71,6 @@ function Show-SystemStatus {
     Show-Separator
     Write-Host ""
 
-    # -------------------------------
-    # ADMINISTRADOR
-    # -------------------------------
-
     $isAdmin = ([Security.Principal.WindowsPrincipal] `
         [Security.Principal.WindowsIdentity]::GetCurrent()
     ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -86,136 +82,12 @@ function Show-SystemStatus {
         Write-Host "NO" -ForegroundColor Red
     }
 
-    # -------------------------------
-    # SISTEMA
-    # -------------------------------
-
     $os = (Get-CimInstance Win32_OperatingSystem).Caption
     Write-Host ""
     Write-Host "Sistema       : $os"
 
-    # -------------------------------
-    # CPU
-    # -------------------------------
-
-    Write-Host ""
-    Write-Host "CPU" -ForegroundColor Cyan
-    Show-Separator
-
-    $cpu = Get-CimInstance Win32_Processor
-    $cpuPercent = [int]$cpu.LoadPercentage
-
-    Write-Host "Modelo        : $($cpu.Name)"
-    Write-Host "Nucleos       : $($cpu.NumberOfCores)"
-    Write-Host "Hilos         : $($cpu.NumberOfLogicalProcessors)"
-    Write-Host ("Uso           : {0}% {1}" -f `
-        $cpuPercent, (Draw-Bar $cpuPercent)) -ForegroundColor Cyan
-
-    # -------------------------------
-    # RAM
-    # -------------------------------
-
-    Write-Host ""
-    Write-Host "MEMORIA RAM" -ForegroundColor Cyan
-    Show-Separator
-
-    $osInfo = Get-CimInstance Win32_OperatingSystem
-    $totalRAM = [math]::Round($osInfo.TotalVisibleMemorySize / 1MB, 2)
-    $freeRAM  = [math]::Round($osInfo.FreePhysicalMemory / 1MB, 2)
-    $usedRAM  = [math]::Round($totalRAM - $freeRAM, 2)
-    $ramPct   = [int](($usedRAM / $totalRAM) * 100)
-
-    Write-Host "Total         : $totalRAM GB"
-    Write-Host "En uso        : $usedRAM GB"
-    Write-Host "Libre         : $freeRAM GB"
-    Write-Host ("Uso           : {0}% {1}" -f `
-        $ramPct, (Draw-Bar $ramPct)) -ForegroundColor Magenta
-
-    # -------------------------------
-    # DISCO (C:)
-    # -------------------------------
-
-    Write-Host ""
-    Write-Host "DISCO" -ForegroundColor Cyan
-    Show-Separator
-
-    $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-
-    $totalDisk = [math]::Round($disk.Size / 1GB, 2)
-    $freeDisk  = [math]::Round($disk.FreeSpace / 1GB, 2)
-    $usedDisk  = [math]::Round($totalDisk - $freeDisk, 2)
-    $diskPct   = [int](($usedDisk / $totalDisk) * 100)
-
-    Write-Host "Unidad        : C:"
-    Write-Host "Total         : $totalDisk GB"
-    Write-Host "Libre         : $freeDisk GB"
-    Write-Host ("Uso           : {0}% {1}" -f `
-        $diskPct, (Draw-Bar $diskPct)) -ForegroundColor Yellow
-
-    # -------------------------------
-    # APPS BLACK CONSOLE
-    # -------------------------------
-
-    Write-Host ""
-    Write-Host "APLICACIONES BLACK CONSOLE" -ForegroundColor Cyan
-    Show-Separator
-
-    $volPath = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
-    $radPath = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
-
-    Write-Host -NoNewline "Control de volumen BK : "
-    if (Test-Path $volPath) {
-        Write-Host "INSTALADA" -ForegroundColor Green
-    } else {
-        Write-Host "NO INSTALADA" -ForegroundColor DarkGray
-    }
-
-    Write-Host -NoNewline "Radial Apps BK       : "
-    if (Test-Path $radPath) {
-        Write-Host "INSTALADA" -ForegroundColor Green
-    } else {
-        Write-Host "NO INSTALADA" -ForegroundColor DarkGray
-    }
-
     Write-Host ""
     Pause
-}
-
-# ==================================================
-# HERRAMIENTAS BLACK CONSOLE
-# ==================================================
-
-function Show-ToolsMenu {
-
-    do {
-        Clear-Host
-        Show-BlackConsoleBanner
-
-        Write-Host "HERRAMIENTAS BLACK CONSOLE" -ForegroundColor Cyan
-        Show-Separator
-        Write-Host ""
-
-        Write-Host "1) Instalar Control de volumen BK"
-        Write-Host "2) Desinstalar Control de volumen BK"
-        Write-Host "3) Instalar Radial Apps BK"
-        Write-Host "4) Desinstalar Radial Apps BK"
-        Write-Host ""
-        Write-Host "0) Volver"
-        Write-Host ""
-
-        Show-Separator
-        $option = Read-Host "Seleccione una opcion"
-
-        switch ($option) {
-            "1" { Install-BKVolumeControl }
-            "2" { Uninstall-BKVolumeControl }
-            "3" { Install-BKRadialApps }
-            "4" { Uninstall-BKRadialApps }
-            "0" { return }
-            default { Pause }
-        }
-
-    } while ($true)
 }
 
 # ==================================================
