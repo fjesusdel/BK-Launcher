@@ -54,7 +54,12 @@ function Show-ToolsMenu {
         # CONTROL DE VOLUMEN BK
         # -------------------------------
 
-        $volInstalled = Test-BKVolumeControlInstalled
+        if (Get-Command Test-BKVolumeControlInstalled -ErrorAction SilentlyContinue) {
+    $volInstalled = Test-BKVolumeControlInstalled
+} else {
+    $volInstalled = $false
+}
+
 
         if ($volInstalled) {
             Write-Host " 1) [OK] Control de volumen BK" -ForegroundColor Green
