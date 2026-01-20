@@ -8,9 +8,10 @@ function Show-MainMenu {
         Clear-Host
         Show-BlackConsoleBanner
 
-        Write-Host "MENU PRINCIPAL"
-        Write-Host "--------------------------------"
+        Write-Host "MENU PRINCIPAL" -ForegroundColor Cyan
+        Show-Separator
         Write-Host ""
+
         Write-Host "1) Instalar software"
         Write-Host "2) Desinstalar software"
         Write-Host "3) Herramientas Black Console"
@@ -21,6 +22,7 @@ function Show-MainMenu {
         Write-Host "0) Salir"
         Write-Host ""
 
+        Show-Separator
         $option = Read-Host "Seleccione una opcion"
 
         switch ($option) {
@@ -65,8 +67,8 @@ function Show-SystemStatus {
     Clear-Host
     Show-BlackConsoleBanner
 
-    Write-Host "ESTADO DEL SISTEMA"
-    Write-Host "--------------------------------"
+    Write-Host "ESTADO DEL SISTEMA" -ForegroundColor Cyan
+    Show-Separator
     Write-Host ""
 
     # -------------------------------
@@ -97,8 +99,8 @@ function Show-SystemStatus {
     # -------------------------------
 
     Write-Host ""
-    Write-Host "CPU"
-    Write-Host "--------------------------------"
+    Write-Host "CPU" -ForegroundColor Cyan
+    Show-Separator
 
     $cpu = Get-CimInstance Win32_Processor
     $cpuPercent = [int]$cpu.LoadPercentage
@@ -114,8 +116,8 @@ function Show-SystemStatus {
     # -------------------------------
 
     Write-Host ""
-    Write-Host "MEMORIA RAM"
-    Write-Host "--------------------------------"
+    Write-Host "MEMORIA RAM" -ForegroundColor Cyan
+    Show-Separator
 
     $osInfo = Get-CimInstance Win32_OperatingSystem
     $totalRAM = [math]::Round($osInfo.TotalVisibleMemorySize / 1MB, 2)
@@ -134,8 +136,8 @@ function Show-SystemStatus {
     # -------------------------------
 
     Write-Host ""
-    Write-Host "DISCO"
-    Write-Host "--------------------------------"
+    Write-Host "DISCO" -ForegroundColor Cyan
+    Show-Separator
 
     $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
 
@@ -155,8 +157,8 @@ function Show-SystemStatus {
     # -------------------------------
 
     Write-Host ""
-    Write-Host "APLICACIONES BLACK CONSOLE"
-    Write-Host "--------------------------------"
+    Write-Host "APLICACIONES BLACK CONSOLE" -ForegroundColor Cyan
+    Show-Separator
 
     $volPath = Join-Path $env:LOCALAPPDATA "BlackConsole\tools\volume"
     $radPath = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
@@ -189,9 +191,10 @@ function Show-ToolsMenu {
         Clear-Host
         Show-BlackConsoleBanner
 
-        Write-Host "HERRAMIENTAS BLACK CONSOLE"
-        Write-Host "--------------------------------"
+        Write-Host "HERRAMIENTAS BLACK CONSOLE" -ForegroundColor Cyan
+        Show-Separator
         Write-Host ""
+
         Write-Host "1) Instalar Control de volumen BK"
         Write-Host "2) Desinstalar Control de volumen BK"
         Write-Host "3) Instalar Radial Apps BK"
@@ -200,6 +203,7 @@ function Show-ToolsMenu {
         Write-Host "0) Volver"
         Write-Host ""
 
+        Show-Separator
         $option = Read-Host "Seleccione una opcion"
 
         switch ($option) {
@@ -207,13 +211,12 @@ function Show-ToolsMenu {
             "2" { Uninstall-BKVolumeControl }
             "3" { Install-BKRadialApps }
             "4" { Uninstall-BKRadialApps }
-            "0" { return }   # 🔑 CLAVE: volver al menú principal
+            "0" { return }
             default { Pause }
         }
 
     } while ($true)
 }
-
 
 # ==================================================
 # RESTO
@@ -226,6 +229,10 @@ function Show-LogsMenu {
 function Show-About {
     Clear-Host
     Show-BlackConsoleBanner
+
+    Write-Host "ACERCA DE" -ForegroundColor Cyan
+    Show-Separator
+    Write-Host ""
     Write-Host "Autor   : $($Global:BKConfig.Author)"
     Write-Host "Version : $($Global:BKConfig.Version)"
     Pause
