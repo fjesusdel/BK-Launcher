@@ -45,6 +45,11 @@ if (-not (Test-Path $configFile)) {
 }
 . $configFile
 
+# Limpieza defensiva de funciones (evita sombras antiguas)
+
+Remove-Item function:Show-ToolsMenu -ErrorAction SilentlyContinue
+
+
 # -------------------------------
 # CARGAR CORE (ORDEN IMPORTA)
 # -------------------------------
