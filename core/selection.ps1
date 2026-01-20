@@ -47,7 +47,7 @@ function Show-ToolsMenu {
         Show-BlackConsoleBanner
 
         Write-Host "HERRAMIENTAS BLACK CONSOLE" -ForegroundColor Cyan
-        Show-Separator
+        Write-Host "--------------------------------"
         Write-Host ""
 
         Write-Host "1) Instalar Control de volumen BK"
@@ -58,7 +58,6 @@ function Show-ToolsMenu {
         Write-Host "0) Volver"
         Write-Host ""
 
-        Show-Separator
         $opt = Read-Host "Seleccione una opcion"
 
         switch ($opt) {
@@ -100,7 +99,7 @@ function Select-BKApplications {
         Show-BlackConsoleBanner
 
         Write-Host "SELECCIONAR APLICACIONES A $($Mode.ToUpper())" -ForegroundColor Cyan
-        Show-Separator
+        Write-Host "--------------------------------"
         Write-Host ""
         Write-Host "Numeros separados por comas (ej: 1,3,5)"
         Write-Host "ENTER = continuar | 0 = cancelar"
@@ -110,10 +109,9 @@ function Select-BKApplications {
         $index = 1
 
         Write-Host "SOFTWARES Y APLICACIONES" -ForegroundColor Cyan
-        Show-Separator
+        Write-Host "--------------------------------"
 
         foreach ($app in $thirdPartyApps) {
-
             if ($app.Installed) {
                 Write-Host ("{0,2}) [✔] {1}" -f $index, $app.Name) -ForegroundColor Green
             } else {
@@ -127,10 +125,9 @@ function Select-BKApplications {
         if ($Mode -eq "uninstall" -and $windowsApps.Count -gt 0) {
             Write-Host ""
             Write-Host "APPS DE WINDOWS" -ForegroundColor Cyan
-            Show-Separator
+            Write-Host "--------------------------------"
 
             foreach ($app in $windowsApps) {
-
                 if ($app.Installed) {
                     Write-Host ("{0,2}) [✔] {1}" -f $index, $app.Name) -ForegroundColor Green
                 } else {
