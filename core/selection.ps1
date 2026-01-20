@@ -37,7 +37,7 @@ function Show-UninstallMenu {
 }
 
 # --------------------------------------------------
-# MENU: HERRAMIENTAS BLACK CONSOLE (CONTEXTUAL)
+# MENU: HERRAMIENTAS BLACK CONSOLE (ESTABLE)
 # --------------------------------------------------
 
 function Show-ToolsMenu {
@@ -46,72 +46,24 @@ function Show-ToolsMenu {
         Clear-Host
         Show-BlackConsoleBanner
 
-        Write-Host "HERRAMIENTAS BLACK CONSOLE" -ForegroundColor Cyan
+        Write-Host "HERRAMIENTAS BLACK CONSOLE"
         Write-Host "--------------------------------"
         Write-Host ""
-
-        # -------------------------------
-        # CONTROL DE VOLUMEN BK
-        # -------------------------------
-
-        if (Get-Command Test-BKVolumeControlInstalled -ErrorAction SilentlyContinue) {
-    $volInstalled = Test-BKVolumeControlInstalled
-} else {
-    $volInstalled = $false
-}
-
-
-        if ($volInstalled) {
-            Write-Host " 1) [OK] Control de volumen BK" -ForegroundColor Green
-            Write-Host "     Accion: Desinstalar" -ForegroundColor DarkGray
-        } else {
-            Write-Host " 1) [  ] Control de volumen BK" -ForegroundColor DarkGray
-            Write-Host "     Accion: Instalar" -ForegroundColor DarkGray
-        }
-
+        Write-Host "1) Instalar Control de volumen BK"
+        Write-Host "2) Desinstalar Control de volumen BK"
+        Write-Host "3) Instalar Radial Apps BK"
+        Write-Host "4) Desinstalar Radial Apps BK"
         Write-Host ""
-
-        # -------------------------------
-        # RADIAL APPS BK
-        # -------------------------------
-
-        $radialPath = Join-Path $env:USERPROFILE "Documents\Rainmeter\Skins\RadialLauncher"
-        $radInstalled = Test-Path $radialPath
-
-        if ($radInstalled) {
-            Write-Host " 2) [OK] Radial Apps BK" -ForegroundColor Green
-            Write-Host "     Accion: Desinstalar" -ForegroundColor DarkGray
-        } else {
-            Write-Host " 2) [  ] Radial Apps BK" -ForegroundColor DarkGray
-            Write-Host "     Accion: Instalar" -ForegroundColor DarkGray
-        }
-
-        Write-Host ""
-        Write-Host "--------------------------------"
-        Write-Host " 0) Volver"
+        Write-Host "0) Volver"
         Write-Host ""
 
         $opt = Read-Host "Seleccione una opcion"
 
         switch ($opt) {
-
-            "1" {
-                if ($volInstalled) {
-                    Uninstall-BKVolumeControl
-                } else {
-                    Install-BKVolumeControl
-                }
-            }
-
-            "2" {
-                if ($radInstalled) {
-                    Uninstall-BKRadialApps
-                    Pause
-                } else {
-                    Install-BKRadialApps
-                }
-            }
-
+            "1" { Install-BKVolumeControl; Pause }
+            "2" { Uninstall-BKVolumeControl; Pause }
+            "3" { Install-BKRadialApps; Pause }
+            "4" { Uninstall-BKRadialApps; Pause }
             "0" { break }
             default { Pause }
         }
@@ -145,7 +97,7 @@ function Select-BKApplications {
         Clear-Host
         Show-BlackConsoleBanner
 
-        Write-Host "SELECCIONAR APLICACIONES A $($Mode.ToUpper())" -ForegroundColor Cyan
+        Write-Host "SELECCIONAR APLICACIONES A $($Mode.ToUpper())"
         Write-Host "--------------------------------"
         Write-Host ""
         Write-Host "Numeros separados por comas (ej: 1,3,5)"
@@ -155,32 +107,24 @@ function Select-BKApplications {
         $indexMap = @{}
         $index = 1
 
-        Write-Host "SOFTWARES Y APLICACIONES" -ForegroundColor Cyan
+        Write-Host "SOFTWARES Y APLICACIONES"
         Write-Host "--------------------------------"
 
         foreach ($app in $thirdPartyApps) {
-            if ($app.Installed) {
-                Write-Host ("{0,2}) [OK] {1}" -f $index, $app.Name) -ForegroundColor Green
-            } else {
-                Write-Host ("{0,2}) [  ] {1}" -f $index, $app.Name) -ForegroundColor DarkGray
-            }
-
+            $state = if ($app.Installed) { "(INSTALADA)" } else { "(NO INSTALADA)" }
+            Write-Host ("{0,2}) {1} {2}" -f $index, $app.Name, $state)
             $indexMap[$index] = $app
             $index++
         }
 
         if ($Mode -eq "uninstall" -and $windowsApps.Count -gt 0) {
             Write-Host ""
-            Write-Host "APPS DE WINDOWS" -ForegroundColor Cyan
+            Write-Host "APPS DE WINDOWS"
             Write-Host "--------------------------------"
 
             foreach ($app in $windowsApps) {
-                if ($app.Installed) {
-                    Write-Host ("{0,2}) [OK] {1}" -f $index, $app.Name) -ForegroundColor Green
-                } else {
-                    Write-Host ("{0,2}) [  ] {1}" -f $index, $app.Name) -ForegroundColor DarkGray
-                }
-
+                $state = if ($app.Installed) { "(INSTALADA)" } else { "(NO INSTALADA)" }
+                Write-Host ("{0,2}) {1} {2}" -f $index, $app.Name, $state)
                 $indexMap[$index] = $app
                 $index++
             }
