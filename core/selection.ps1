@@ -37,7 +37,7 @@ function Show-UninstallMenu {
 }
 
 # --------------------------------------------------
-# MENU: HERRAMIENTAS BLACK CONSOLE (ESTABLE)
+# MENU: HERRAMIENTAS BLACK CONSOLE
 # --------------------------------------------------
 
 function Show-ToolsMenu {
@@ -60,10 +60,10 @@ function Show-ToolsMenu {
         $opt = Read-Host "Seleccione una opcion"
 
         switch ($opt) {
-            "1" { Install-BKVolumeControl; Pause }
-            "2" { Uninstall-BKVolumeControl; Pause }
-            "3" { Install-BKRadialApps; Pause }
-            "4" { Uninstall-BKRadialApps; Pause }
+            "1" { Install-BKVolumeControl | Out-Null; Pause }
+            "2" { Uninstall-BKVolumeControl | Out-Null; Pause }
+            "3" { Install-BKRadialApps     | Out-Null; Pause }
+            "4" { Uninstall-BKRadialApps   | Out-Null; Pause }
             "0" { break }
             default { Pause }
         }
