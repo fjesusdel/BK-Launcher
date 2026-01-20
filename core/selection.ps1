@@ -37,6 +37,43 @@ function Show-UninstallMenu {
 }
 
 # --------------------------------------------------
+# MENU: HERRAMIENTAS BLACK CONSOLE
+# --------------------------------------------------
+
+function Show-ToolsMenu {
+
+    do {
+        Clear-Host
+        Show-BlackConsoleBanner
+
+        Write-Host "HERRAMIENTAS BLACK CONSOLE" -ForegroundColor Cyan
+        Write-Host "--------------------------------"
+        Write-Host ""
+
+        Write-Host "1) Instalar Control de volumen BK"
+        Write-Host "2) Desinstalar Control de volumen BK"
+        Write-Host "3) Instalar Radial Apps BK"
+        Write-Host "4) Desinstalar Radial Apps BK"
+        Write-Host ""
+        Write-Host "0) Volver"
+        Write-Host ""
+
+        Write-Host "--------------------------------"
+        $opt = Read-Host "Seleccione una opcion"
+
+        switch ($opt) {
+            "1" { Install-BKVolumeControl | Out-Null; Pause }
+            "2" { Uninstall-BKVolumeControl | Out-Null; Pause }
+            "3" { Install-BKRadialApps     | Out-Null; Pause }
+            "4" { Uninstall-BKRadialApps   | Out-Null; Pause }
+            "0" { break }
+            default { Pause }
+        }
+
+    } while ($true)
+}
+
+# --------------------------------------------------
 # SELECCION GENERICA DE APPS
 # --------------------------------------------------
 
@@ -76,7 +113,6 @@ function Select-BKApplications {
         Write-Host "--------------------------------"
 
         foreach ($app in $thirdPartyApps) {
-
             if ($app.Installed) {
                 Write-Host ("{0,2}) [OK] {1}" -f $index, $app.Name) -ForegroundColor Green
             } else {
@@ -93,7 +129,6 @@ function Select-BKApplications {
             Write-Host "--------------------------------"
 
             foreach ($app in $windowsApps) {
-
                 if ($app.Installed) {
                     Write-Host ("{0,2}) [OK] {1}" -f $index, $app.Name) -ForegroundColor Green
                 } else {
